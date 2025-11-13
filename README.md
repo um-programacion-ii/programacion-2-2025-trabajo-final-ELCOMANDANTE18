@@ -9,8 +9,8 @@ Sistema integral para el registro y gestión de asistencia a eventos únicos, co
 Sistema que permite a los usuarios:
 - Consultar el listado de eventos disponibles
 - Ver el detalle y el mapa de asientos de un evento
-- Seleccionar y bloquear temporalmente (por sesión) de 1 a 4 asientos[cite: 59, 164].
-- Cargar los datos (nombre y apellido) de los asistentes para los asientos seleccionados[cite: 60].
+- Seleccionar y bloquear temporalmente (por sesión) de 1 a 4 asientos.
+- Cargar los datos (nombre y apellido) de los asistentes para los asientos seleccionados.
 - Confirmar la compra (venta) de las entradas.
 
 ## Arquitectura
@@ -41,7 +41,7 @@ El proyecto está dividido en cuatro componentes principales según el enunciado
 
 ## Tecnologías
 
--   **Backend**: Java (Spring Boot / JHipster) [cite: 34], MySQL, Redis (para sesiones locales).
+-   **Backend**: Java (Spring Boot / JHipster) , MySQL, Redis (para sesiones locales).
 -   **Proxy**: Java (Spring Boot), Kafka Consumer, Redis Client.
 -   **Mobile**: Kotlin Multiplatform (KMP).
 -   **Infraestructura**: Docker.
