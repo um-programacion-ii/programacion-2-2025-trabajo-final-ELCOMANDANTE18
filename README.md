@@ -3,8 +3,9 @@
   <br>
   <br>
 </div>
-# ENTRADERA
 
+
+## Entradera
 Sistema integral para el registro y gestión de asistencia a eventos únicos, como parte del Trabajo de Regularización 2025.
 
 **Trabajo Final - Programación 2 - 2025**
