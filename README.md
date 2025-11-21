@@ -1,4 +1,9 @@
-# Sistema de Gestión de Asistencia a Eventos
+<div align="center">
+  <img src="docs/logo.entradera.png" alt="Logo Entradera" width="300">
+  <br>
+  <br>
+</div>
+# ENTRADERA
 
 Sistema integral para el registro y gestión de asistencia a eventos únicos, como parte del Trabajo de Regularización 2025.
 
