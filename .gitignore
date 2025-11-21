@@ -1,4 +1,5 @@
 # --- Seguridad / Secretos (¡MUY IMPORTANTE!) ---
+Las dudas
 .env
 .env.*
 *.key
