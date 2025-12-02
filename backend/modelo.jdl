@@ -1,0 +1,16 @@
+entity Evento {
+  idCatedra Long required, // Para saber cuál es el ID original en el sistema del profesor
+  titulo String required,
+  resumen String,
+  descripcion String,
+  fecha Instant required,
+  direccion String,
+  imagen String, // Guardaremos la URL de la imagen
+  filaAsientos Integer required,
+  columnAsientos Integer required,
+  precioEntrada BigDecimal
+}
+
+// Opciones extra para que el código sea más limpio
+paginate Evento with pagination
+service Evento with serviceClass
