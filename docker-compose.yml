@@ -1,0 +1,48 @@
+version: '3.8'
+services:
+  # --- 1. Base de Datos para TU Backend (MySQL) ---
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_backend
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: eventos_BD
+    ports:
+      - "3306:3306"
+    # Este comando ayuda a evitar errores de conexión antiguos en Java
+    command: --default-authentication-plugin=mysql_native_password
+
+  # --- 2. Redis (Sirve para dos cosas: Cache de JHipster y Cátedra simulada) ---
+  redis:
+    image: redis:alpine
+    container_name: redis_local
+    ports:
+      - "6379:6379"
+
+  # --- 3. Zookeeper (Necesario para que Kafka funcione) ---
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  # --- 4. Kafka (Simula la Cátedra para enviar mensajes) ---
+  kafka:
+    image: wurstmeister/kafka:2.13-2.8.1
+    container_name: kafka_catedra
+    ports:
+      - "9092:9092"
+    environment:
+      # Le decimos explícitamente: "Tú eres localhost"
+      KAFKA_ADVERTISED_HOST_NAME: localhost
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # Esto crea un topic de prueba automáticamente para verificar que arranca
+      KAFKA_CREATE_TOPICS: "test:1:1"
+    volumes:
+      # Esto permite que Kafka hable con Docker para autoconfigurarse
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - zookeeper
