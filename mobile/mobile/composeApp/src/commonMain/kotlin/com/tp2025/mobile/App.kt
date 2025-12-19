@@ -1,36 +1,26 @@
 package com.tp2025.mobile
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.Button
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedTextField
-import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import com.tp2025.mobile.auth.AuthService // <--- 1. IMPORTANTE: Importar tu servicio
+import com.tp2025.mobile.auth.SessionManager
 
 @Composable
 fun App() {
     MaterialTheme {
         var username by remember { mutableStateOf("admin") }
-        var password by remember { mutableStateOf("admin") }
+        var password by remember { mutableStateOf("admin") } // JHipster usa 'admin' por defecto
         var statusMessage by remember { mutableStateOf("Esperando login...") }
 
-        // Scope para ejecutar tareas asíncronas (como peticiones HTTP)
+        // 2. Instanciamos el servicio (el "teléfono" para llamar al backend)
+        val authService = remember { AuthService() }
+
         val scope = rememberCoroutineScope()
 
         Column(
@@ -64,9 +54,25 @@ fun App() {
             Button(
                 onClick = {
                     scope.launch {
-                        statusMessage = "Intentando conectar..."
-                        // ACÁ VA A IR LA LÓGICA DE CONEXIÓN
-                        statusMessage = "Botón presionado (Falta conectar lógica)"
+                        statusMessage = "🔄 Conectando con JHipster..."
+
+                        // 1. Llamamos al Backend
+                        val resultado = authService.login(username, password)
+
+                        resultado.onSuccess { token ->
+                            // 2. ¡GUARDAMOS EL TOKEN EN EL BOLSILLO!
+                            SessionManager.jwtToken = token // <--- ESTA ES LA LÍNEA NUEVA
+
+                            // 3. Avisamos al usuario
+                            statusMessage = "✅ Login Correcto. Token guardado en memoria."
+                            println("🔐 Token guardado: ${SessionManager.jwtToken?.take(10)}...")
+
+                            // (Opcional) Aquí navegaríamos a la pantalla de Eventos
+                            // navigator.push(EventosScreen())
+
+                        }.onFailure { error ->
+                            statusMessage = "❌ Error: ${error.message}"
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth().height(50.dp)

@@ -6,8 +6,9 @@ import androidx.compose.ui.window.application
 fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
-        title = "mobile",
+        title = "Entradera - Desktop App 🎟️",
     ) {
+        // Aquí llamamos a tu App común (la misma que usa Android)
         App()
     }
 }
