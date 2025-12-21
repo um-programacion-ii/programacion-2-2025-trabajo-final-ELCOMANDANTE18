@@ -23,7 +23,12 @@ class AuthService {
     // IMPORTANTE: En el emulador Android, "localhost" es "10.0.2.2".
     // Si usas celular físico, aquí iría la IP de tu PC (ej: 192.168.1.XX).
     // private val baseUrl = "http://10.0.2.2:8080/api" // <--- Comenta esta (Android)
-    private val baseUrl = "http://localhost:8080/api"  // <--- Usa esta para Desktop
+    // ANTES (Incorrecto para celular real):
+// private val baseUrl = "http://localhost:8080/api"
+// private val baseUrl = "http://10.0.2.2:8080/api"
+
+    // AHORA (Correcto para tu Moto G8):
+    private val baseUrl = "http://192.168.100.14:8080/api"  // <--- Usa esta para Desktop
 
     // 3. La función de Login
     suspend fun login(usuario: String, contrasenia: String): Result<String> {
