@@ -26,7 +26,7 @@
             <column name="descripcion" type="varchar(255)">
                 <constraints nullable="true" />
             </column>
-            <column name="fecha" type="${datetimeType}">
+            <column name="fecha" type="datetime">
                 <constraints nullable="false" />
             </column>
             <column name="direccion" type="varchar(255)">
@@ -46,7 +46,7 @@
             </column>
             <!-- jhipster-needle-liquibase-add-column - JHipster will add columns here -->
         </createTable>
-        <dropDefaultValue tableName="evento" columnName="fecha" columnDataType="${datetimeType}"/>
+        <dropDefaultValue tableName="evento" columnName="fecha" columnDataType="datetimeType"/>
     </changeSet>
 
     <!-- jhipster-needle-liquibase-add-changeset - JHipster will add changesets here -->
