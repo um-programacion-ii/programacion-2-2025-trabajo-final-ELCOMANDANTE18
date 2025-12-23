@@ -26,7 +26,7 @@
             <column name="descripcion" type="varchar(255)">
                 <constraints nullable="true" />
             </column>
-            <column name="fecha" type="${datetimeType}">
+          <column name="fecha" type="datetime">
                 <constraints nullable="false" />
             </column>
             <column name="direccion" type="varchar(255)">
