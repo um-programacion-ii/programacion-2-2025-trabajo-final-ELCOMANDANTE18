@@ -37,9 +37,19 @@ fun AsientosScreen(evento: Evento, onBack: () -> Unit) {
 
     var mostrandoDialogoNombres by remember { mutableStateOf(false) }
 
-    // 1. Cargar ocupados al inicio
+    // 👇 ESTA ES LA PARTE QUE CAMBIÓ:
+    // Al entrar, cargamos ocupados Y guardamos la sesión
+    // 1. AL INICIAR
     LaunchedEffect(Unit) {
         ocupadosRemotos = servicio.obtenerOcupados(evento.id)
+
+        // 👇 PRUEBA DE DIAGNÓSTICO: FORZAMOS EL USUARIO "admin"
+        // val usuario = SessionManager.currentUser ?: "anonimo"
+        val usuario = "admin" // <--- CAMBIO TEMPORAL
+
+        println("📱 DEBUG: Intentando guardar sesión para: $usuario en evento ${evento.id}")
+
+        servicio.guardarVisita(usuario, evento.id)
     }
 
     Scaffold(
@@ -85,14 +95,14 @@ fun AsientosScreen(evento: Evento, onBack: () -> Unit) {
                             val fila = filaIndex + 1
                             val col = colIndex + 1
 
-                            // 2. Ver si este asiento está en la lista de ocupados
+                            // Ver si este asiento está ocupado
                             val estaOcupado = ocupadosRemotos.contains("$fila-$col")
 
                             AsientoItem(
                                 fila = fila,
                                 col = col,
                                 eventoId = evento.id,
-                                esOcupadoInicial = estaOcupado, // 👈 AQUÍ ARREGLAMOS EL ERROR DE FALTA DE PARÁMETRO
+                                esOcupadoInicial = estaOcupado,
                                 servicio = servicio,
                                 scope = scope,
                                 onBloqueoExitoso = { misAsientos.add(AsientoVenta(fila, col)) },

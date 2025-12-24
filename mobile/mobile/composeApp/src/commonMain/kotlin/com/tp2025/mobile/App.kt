@@ -13,29 +13,52 @@ import com.tp2025.mobile.auth.SessionManager
 import com.tp2025.mobile.ui.HomeScreen
 import com.tp2025.mobile.ui.AsientosScreen
 import com.tp2025.mobile.data.Evento
+import com.tp2025.mobile.data.EventoService // Necesario para buscar el evento por ID
 
-// 1. Definimos los "destinos" posibles de nuestra App
+// Definimos los destinos
 sealed class Screen {
     object Login : Screen()
     object Home : Screen()
-    data class Asientos(val evento: Evento) : Screen() // Este destino lleva datos
+    data class Asientos(val evento: Evento) : Screen()
 }
 
 @Composable
 fun App() {
     MaterialTheme {
-        // Estado de la navegación: Empezamos en Login
         var currentScreen by remember { mutableStateOf<Screen>(Screen.Login) }
-
-        // Estado del Token
         var token by remember { mutableStateOf<String?>(null) }
 
-        // 2. El "Router" que decide qué mostrar
+        // Necesitamos el servicio para buscar el evento si hay que "retomar sesión"
+        val eventoService = remember { EventoService() }
+        val scope = rememberCoroutineScope()
+
         when (val screen = currentScreen) {
             is Screen.Login -> {
-                LoginScreen(onLoginSuccess = { nuevoToken ->
+                LoginScreen(onLoginSuccess = { nuevoToken, usuario ->
                     token = nuevoToken
-                    currentScreen = Screen.Home // Al loguear, vamos al Home
+
+                    // 🚀 LÓGICA DE RETOMAR SESIÓN (Issue #24)
+                    scope.launch {
+                        // 1. Preguntamos a Redis: ¿Dónde estaba este usuario?
+                        val ultimoEventoId = eventoService.recuperarUltimaVisita(usuario)
+
+                        if (ultimoEventoId != null) {
+                            // 2. Si hay dato, buscamos el objeto Evento completo
+                            // (Esto es un poco ineficiente pero funciona para el TP: bajamos todos y filtramos)
+                            val eventos = eventoService.obtenerEventos(nuevoToken)
+                            val eventoAuntiguo = eventos.find { it.id == ultimoEventoId }
+
+                            if (eventoAuntiguo != null) {
+                                // 3. ¡MAGIA! Vamos directo a los asientos
+                                currentScreen = Screen.Asientos(eventoAuntiguo)
+                            } else {
+                                currentScreen = Screen.Home
+                            }
+                        } else {
+                            // Si no hay sesión previa, vamos al Home normal
+                            currentScreen = Screen.Home
+                        }
+                    }
                 })
             }
             is Screen.Home -> {
@@ -43,12 +66,10 @@ fun App() {
                     HomeScreen(
                         token = token!!,
                         onEventoClick = { eventoSeleccionado ->
-                            // Navegamos a la pantalla de asientos pasando el evento
                             currentScreen = Screen.Asientos(eventoSeleccionado)
                         }
                     )
                 } else {
-                    // Si se perdió el token, volvemos al login
                     currentScreen = Screen.Login
                 }
             }
@@ -56,7 +77,6 @@ fun App() {
                 AsientosScreen(
                     evento = screen.evento,
                     onBack = {
-                        // Al volver (flecha o compra exitosa), regresamos al Home
                         currentScreen = Screen.Home
                     }
                 )
@@ -65,11 +85,8 @@ fun App() {
     }
 }
 
-/**
- * Pantalla de Login (Tal cual la tenías)
- */
 @Composable
-fun LoginScreen(onLoginSuccess: (String) -> Unit) {
+fun LoginScreen(onLoginSuccess: (String, String) -> Unit) { // Agregamos 'String' para pasar el usuario
     var username by remember { mutableStateOf("admin") }
     var password by remember { mutableStateOf("admin") }
     var statusMessage by remember { mutableStateOf("Esperando login...") }
@@ -84,7 +101,6 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("Entradera Móvil 🎟️", style = MaterialTheme.typography.h4)
-
         Spacer(modifier = Modifier.height(32.dp))
 
         OutlinedTextField(
@@ -93,9 +109,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
             label = { Text("Usuario") },
             modifier = Modifier.fillMaxWidth()
         )
-
         Spacer(modifier = Modifier.height(16.dp))
-
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
@@ -103,7 +117,6 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
-
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
@@ -118,7 +131,8 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
                     resultado.onSuccess { tokenRecibido ->
                         SessionManager.jwtToken = tokenRecibido
                         statusMessage = "✅ Login Correcto"
-                        onLoginSuccess(tokenRecibido)
+                        // Pasamos el token Y el usuario
+                        onLoginSuccess(tokenRecibido, username)
                     }.onFailure { error ->
                         statusMessage = "❌ Error: ${error.message}"
                         isLoggingIn = false
@@ -134,7 +148,6 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
                 Text("INGRESAR")
             }
         }
-
         Spacer(modifier = Modifier.height(16.dp))
         Text(statusMessage)
     }

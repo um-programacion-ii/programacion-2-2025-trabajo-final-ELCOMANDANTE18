@@ -7,8 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
-import java.util.Set; // <--- Import nuevo
-import java.util.stream.Collectors; // <--- Import nuevo
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/proxy")
@@ -22,7 +22,7 @@ public class ReservaController {
     }
 
     /**
-     * Simula el bloqueo de asientos (Punto 5.2 del enunciado).
+     * 1. Simula el bloqueo de asientos.
      */
     @PostMapping("/bloquear")
     public ResponseEntity<String> bloquearAsiento(@RequestBody SolicitudReserva solicitud) {
@@ -43,28 +43,55 @@ public class ReservaController {
     }
 
     /**
-     * 👇 NUEVO MÉTODO: Consulta qué asientos están ocupados en Redis
-     * Retorna una lista tipo ["1-1", "10-2", "5-5"]
+     * 2. Consulta qué asientos están ocupados (Rojos).
      */
     @GetMapping("/ocupados/{eventoId}")
     public ResponseEntity<Set<String>> obtenerAsientosOcupados(@PathVariable Long eventoId) {
-        // Buscamos todas las claves que coincidan con el patrón del evento
         String patron = "evento:" + eventoId + ":asiento:*";
-
-        // redisTemplate.keys(*) es como hacer un SELECT ... WHERE key LIKE ...
         Set<String> keys = redisTemplate.keys(patron);
 
         if (keys == null || keys.isEmpty()) {
             return ResponseEntity.ok(Set.of());
         }
 
-        // Limpiamos las claves para dejar solo "fila-columna"
-        // Transformamos "evento:12:asiento:1-1" -> "1-1"
         Set<String> ocupados = keys.stream()
                 .map(k -> k.substring(k.lastIndexOf(":") + 1))
                 .collect(Collectors.toSet());
 
         return ResponseEntity.ok(ocupados);
+    }
+
+    // 👇👇👇 LO QUE FALTABA (SESIONES) 👇👇👇
+
+    /**
+     * 3. 🧠 MEMORIA: Guarda en qué evento está el usuario actualmente.
+     * Clave Redis: "usuario:{username}:ultima_visita" -> "12"
+     */
+    @PostMapping("/sesion/{usuario}/visita/{eventoId}")
+    public ResponseEntity<Void> guardarSesion(@PathVariable String usuario, @PathVariable Long eventoId) {
+        String key = "usuario:" + usuario + ":ultima_visita";
+
+        // Guardamos esto por 30 minutos
+        redisTemplate.opsForValue().set(key, eventoId.toString(), Duration.ofMinutes(30));
+
+        log.info("💾 Sesión guardada: Usuario {} está viendo evento {}", usuario, eventoId);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 4. 🧠 RECUPERAR: Pregunta cuál fue el último evento visitado.
+     */
+    @GetMapping("/sesion/{usuario}/ultima_visita")
+    public ResponseEntity<String> obtenerUltimaVisita(@PathVariable String usuario) {
+        String key = "usuario:" + usuario + ":ultima_visita";
+        String eventoId = redisTemplate.opsForValue().get(key);
+
+        if (eventoId != null) {
+            log.info("magna Sesión recuperada: Usuario {} estaba en evento {}", usuario, eventoId);
+            return ResponseEntity.ok("{\"eventoId\": " + eventoId + "}");
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     // DTO
