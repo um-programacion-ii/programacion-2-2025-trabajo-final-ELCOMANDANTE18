@@ -19,11 +19,11 @@ class EventoService {
         }
     }
 
-    // URLs
+    // URLs (Asegurate que sean las correctas para tu emulador/dispositivo)
     private val backendUrl = "http://192.168.100.14:8080/api"
     private val proxyUrl = "http://192.168.100.14:8081/api/proxy"
 
-    // --- LEER EVENTOS ---
+    // --- 1. LEER EVENTOS (Backend) ---
     suspend fun obtenerEventos(token: String): List<Evento> {
         return try {
             val response = client.get("$backendUrl/eventos") {
@@ -36,7 +36,7 @@ class EventoService {
         }
     }
 
-    // --- BLOQUEAR ASIENTO (PROXY) ---
+    // --- 2. BLOQUEAR ASIENTO (Proxy) ---
     suspend fun bloquearAsiento(eventoId: Long, fila: Int, col: Int): Boolean {
         return try {
             val response = client.post("$proxyUrl/bloquear") {
@@ -56,7 +56,7 @@ class EventoService {
         }
     }
 
-    // --- REALIZAR VENTA (BACKEND) ---
+    // --- 3. REALIZAR VENTA (Backend) ---
     suspend fun realizarVenta(
         token: String,
         eventoId: Long,
@@ -82,7 +82,7 @@ class EventoService {
         }
     }
 
-    // 👇 ESTA ES LA FUNCIÓN QUE TE FALTABA Y DABA ERROR
+    // --- 4. CONSULTAR OCUPADOS (Proxy) ---
     suspend fun obtenerOcupados(eventoId: Long): List<String> {
         return try {
             val response = client.get("$proxyUrl/ocupados/$eventoId")
@@ -94,6 +94,34 @@ class EventoService {
         } catch (e: Exception) {
             println("❌ Error consultando ocupados: ${e.message}")
             emptyList()
+        }
+    }
+
+    // --- 5. SESIONES (Proxy - Issue #17) ---
+
+    // Guardar dónde estoy
+    suspend fun guardarVisita(usuario: String, eventoId: Long) {
+        try {
+            client.post("$proxyUrl/sesion/$usuario/visita/$eventoId")
+        } catch (e: Exception) {
+            println("⚠️ No se pudo guardar sesión: ${e.message}")
+        }
+    }
+
+    // Recuperar dónde estaba (ESTA ES LA QUE FALTABA)
+    suspend fun recuperarUltimaVisita(usuario: String): Long? {
+        return try {
+            val response = client.get("$proxyUrl/sesion/$usuario/ultima_visita")
+            if (response.status == HttpStatusCode.OK) {
+                val body = response.body<String>()
+                // Extraemos el número del JSON simple {"eventoId": 12}
+                val numero = Regex("[0-9]+").find(body)?.value
+                numero?.toLongOrNull()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 }
