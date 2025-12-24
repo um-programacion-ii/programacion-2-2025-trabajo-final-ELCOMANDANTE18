@@ -7,6 +7,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
+import com.tp2025.mobile.auth.SessionManager // Importante para llamar a la alarma
 
 class EventoService {
 
@@ -19,7 +20,7 @@ class EventoService {
         }
     }
 
-    // URLs (Asegurate que sean las correctas para tu emulador/dispositivo)
+    // URLs
     private val backendUrl = "http://192.168.100.14:8080/api"
     private val proxyUrl = "http://192.168.100.14:8081/api/proxy"
 
@@ -29,6 +30,14 @@ class EventoService {
             val response = client.get("$backendUrl/eventos") {
                 header("Authorization", "Bearer $token")
             }
+
+            // 👇 DETECCIÓN DE TOKEN VENCIDO
+            if (response.status == HttpStatusCode.Unauthorized) {
+                println("🚨 Token vencido. Cerrando sesión...")
+                SessionManager.onSessionExpired?.invoke() // ¡TOCAMOS LA ALARMA!
+                return emptyList()
+            }
+
             response.body()
         } catch (e: Exception) {
             println("❌ Error bajando eventos: ${e.message}")
@@ -75,6 +84,13 @@ class EventoService {
                 setBody(request)
             }
 
+            // 👇 DETECCIÓN DE TOKEN VENCIDO
+            if (response.status == HttpStatusCode.Unauthorized) {
+                println("🚨 Token vencido al comprar. Cerrando sesión...")
+                SessionManager.onSessionExpired?.invoke() // ¡ALARMA!
+                return false
+            }
+
             response.status == HttpStatusCode.OK
         } catch (e: Exception) {
             println("❌ Error Venta: ${e.message}")
@@ -97,9 +113,7 @@ class EventoService {
         }
     }
 
-    // --- 5. SESIONES (Proxy - Issue #17) ---
-
-    // Guardar dónde estoy
+    // --- 5. SESIONES (Proxy) ---
     suspend fun guardarVisita(usuario: String, eventoId: Long) {
         try {
             client.post("$proxyUrl/sesion/$usuario/visita/$eventoId")
@@ -108,13 +122,11 @@ class EventoService {
         }
     }
 
-    // Recuperar dónde estaba (ESTA ES LA QUE FALTABA)
     suspend fun recuperarUltimaVisita(usuario: String): Long? {
         return try {
             val response = client.get("$proxyUrl/sesion/$usuario/ultima_visita")
             if (response.status == HttpStatusCode.OK) {
                 val body = response.body<String>()
-                // Extraemos el número del JSON simple {"eventoId": 12}
                 val numero = Regex("[0-9]+").find(body)?.value
                 numero?.toLongOrNull()
             } else {

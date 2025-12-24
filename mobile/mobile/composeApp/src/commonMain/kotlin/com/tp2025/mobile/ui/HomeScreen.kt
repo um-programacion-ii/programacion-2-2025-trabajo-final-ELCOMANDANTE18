@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -12,9 +14,13 @@ import androidx.compose.ui.unit.dp
 import com.tp2025.mobile.data.Evento
 import com.tp2025.mobile.data.EventoService
 
-// 👇 1. AQUI AGREGAMOS EL PARAMETRO 'onEventoClick'
+// 👇 Agregamos el parámetro 'onLogout'
 @Composable
-fun HomeScreen(token: String, onEventoClick: (Evento) -> Unit) {
+fun HomeScreen(
+    token: String,
+    onEventoClick: (Evento) -> Unit,
+    onLogout: () -> Unit
+) {
     var eventos by remember { mutableStateOf<List<Evento>>(emptyList()) }
     val eventoService = remember { EventoService() }
 
@@ -27,7 +33,17 @@ fun HomeScreen(token: String, onEventoClick: (Evento) -> Unit) {
         topBar = {
             TopAppBar(
                 title = { Text("Eventos Disponibles 🎟️") },
-                backgroundColor = MaterialTheme.colors.primary
+                backgroundColor = MaterialTheme.colors.primary,
+                // 👇 BOTÓN DE LOGOUT A LA DERECHA
+                actions = {
+                    IconButton(onClick = onLogout) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "Cerrar Sesión",
+                            tint = Color.White
+                        )
+                    }
+                }
             )
         }
     ) { padding ->
@@ -35,7 +51,6 @@ fun HomeScreen(token: String, onEventoClick: (Evento) -> Unit) {
             modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)
         ) {
             items(eventos) { evento ->
-                // 👇 2. PASAMOS LA ACCIÓN AL COMPONENTE TARJETA
                 TarjetaEvento(
                     evento = evento,
                     onClick = { onEventoClick(evento) }
@@ -46,7 +61,6 @@ fun HomeScreen(token: String, onEventoClick: (Evento) -> Unit) {
     }
 }
 
-// 👇 3. AGREGAMOS EL PARAMETRO 'onClick' A LA TARJETA
 @Composable
 fun TarjetaEvento(evento: Evento, onClick: () -> Unit) {
     Card(
@@ -74,10 +88,9 @@ fun TarjetaEvento(evento: Evento, onClick: () -> Unit) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 👇 4. EL BOTÓN QUE DISPARA LA ACCIÓN
             Button(
                 onClick = onClick,
-                modifier = Modifier.fillMaxWidth() // Botón ancho completo opcional
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Ver Entradas")
             }

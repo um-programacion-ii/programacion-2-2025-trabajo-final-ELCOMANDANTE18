@@ -13,9 +13,8 @@ import com.tp2025.mobile.auth.SessionManager
 import com.tp2025.mobile.ui.HomeScreen
 import com.tp2025.mobile.ui.AsientosScreen
 import com.tp2025.mobile.data.Evento
-import com.tp2025.mobile.data.EventoService // Necesario para buscar el evento por ID
+import com.tp2025.mobile.data.EventoService
 
-// Definimos los destinos
 sealed class Screen {
     object Login : Screen()
     object Home : Screen()
@@ -28,34 +27,38 @@ fun App() {
         var currentScreen by remember { mutableStateOf<Screen>(Screen.Login) }
         var token by remember { mutableStateOf<String?>(null) }
 
-        // Necesitamos el servicio para buscar el evento si hay que "retomar sesión"
         val eventoService = remember { EventoService() }
         val scope = rememberCoroutineScope()
+
+        // 👇 CONFIGURACIÓN GLOBAL DE LA ALARMA (Issue #19)
+        // Esto se ejecuta una vez cuando arranca la App
+        DisposableEffect(Unit) {
+            SessionManager.onSessionExpired = {
+                // Cuando suene la alarma (401), hacemos esto:
+                println("⚠️ App: Sesión expirada detectada. Redirigiendo al Login.")
+                SessionManager.clear()
+                token = null
+                currentScreen = Screen.Login
+            }
+            onDispose { }
+        }
 
         when (val screen = currentScreen) {
             is Screen.Login -> {
                 LoginScreen(onLoginSuccess = { nuevoToken, usuario ->
                     token = nuevoToken
 
-                    // 🚀 LÓGICA DE RETOMAR SESIÓN (Issue #24)
                     scope.launch {
-                        // 1. Preguntamos a Redis: ¿Dónde estaba este usuario?
                         val ultimoEventoId = eventoService.recuperarUltimaVisita(usuario)
-
                         if (ultimoEventoId != null) {
-                            // 2. Si hay dato, buscamos el objeto Evento completo
-                            // (Esto es un poco ineficiente pero funciona para el TP: bajamos todos y filtramos)
                             val eventos = eventoService.obtenerEventos(nuevoToken)
                             val eventoAuntiguo = eventos.find { it.id == ultimoEventoId }
-
                             if (eventoAuntiguo != null) {
-                                // 3. ¡MAGIA! Vamos directo a los asientos
                                 currentScreen = Screen.Asientos(eventoAuntiguo)
                             } else {
                                 currentScreen = Screen.Home
                             }
                         } else {
-                            // Si no hay sesión previa, vamos al Home normal
                             currentScreen = Screen.Home
                         }
                     }
@@ -67,6 +70,11 @@ fun App() {
                         token = token!!,
                         onEventoClick = { eventoSeleccionado ->
                             currentScreen = Screen.Asientos(eventoSeleccionado)
+                        },
+                        onLogout = {
+                            SessionManager.clear()
+                            token = null
+                            currentScreen = Screen.Login
                         }
                     )
                 } else {
@@ -86,7 +94,7 @@ fun App() {
 }
 
 @Composable
-fun LoginScreen(onLoginSuccess: (String, String) -> Unit) { // Agregamos 'String' para pasar el usuario
+fun LoginScreen(onLoginSuccess: (String, String) -> Unit) {
     var username by remember { mutableStateOf("admin") }
     var password by remember { mutableStateOf("admin") }
     var statusMessage by remember { mutableStateOf("Esperando login...") }
@@ -130,8 +138,8 @@ fun LoginScreen(onLoginSuccess: (String, String) -> Unit) { // Agregamos 'String
 
                     resultado.onSuccess { tokenRecibido ->
                         SessionManager.jwtToken = tokenRecibido
+                        SessionManager.currentUser = username
                         statusMessage = "✅ Login Correcto"
-                        // Pasamos el token Y el usuario
                         onLoginSuccess(tokenRecibido, username)
                     }.onFailure { error ->
                         statusMessage = "❌ Error: ${error.message}"
