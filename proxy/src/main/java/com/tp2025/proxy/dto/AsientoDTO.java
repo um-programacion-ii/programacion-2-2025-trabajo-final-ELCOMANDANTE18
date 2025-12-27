@@ -10,6 +10,5 @@ import lombok.NoArgsConstructor;
 public class AsientoDTO {
     private Integer fila;
     private Integer columna;
-    private String estado;      // "Bloqueado" o "Vendido"
-    private String expira;      // Solo presente si estado = "Bloqueado"
+    private String estado; // "Ocupado", "Bloqueado", "Vendido"
 }
