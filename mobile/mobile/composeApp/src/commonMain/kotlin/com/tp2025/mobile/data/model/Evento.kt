@@ -39,10 +39,3 @@ data class VentaRequest(
     val precioVenta: Double,
     val fecha: String? = null
 )
-
-@Serializable
-data class AsientoVenta(
-    val fila: Int,
-    val columna: Int,
-    var persona: String = "" // El nombre del ocupante
-)

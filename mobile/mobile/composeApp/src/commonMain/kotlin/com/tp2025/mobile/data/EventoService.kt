@@ -7,7 +7,8 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
-import com.tp2025.mobile.auth.SessionManager // Importante para llamar a la alarma
+import com.tp2025.mobile.auth.SessionManager
+import kotlinx.coroutines.delay
 
 class EventoService {
 
@@ -20,39 +21,61 @@ class EventoService {
         }
     }
 
-    // URLs
+    // URLs (No importan ahora porque estamos simulando, pero las dejamos listas)
     private val backendUrl = "http://192.168.100.14:8080/api"
     private val proxyUrl = "http://192.168.100.14:8081/api/proxy"
 
-    // --- 1. LEER EVENTOS (Backend) ---
+    // --- 1. LEER EVENTOS ---
     suspend fun obtenerEventos(token: String): List<Evento> {
         return try {
             val response = client.get("$backendUrl/eventos") {
                 header("Authorization", "Bearer $token")
             }
 
-            // 👇 DETECCIÓN DE TOKEN VENCIDO
             if (response.status == HttpStatusCode.Unauthorized) {
                 println("🚨 Token vencido. Cerrando sesión...")
-                SessionManager.onSessionExpired?.invoke() // ¡TOCAMOS LA ALARMA!
+                SessionManager.onSessionExpired?.invoke()
                 return emptyList()
             }
 
             response.body()
         } catch (e: Exception) {
-            println("❌ Error bajando eventos: ${e.message}")
-            emptyList()
+            // MOCK DE EMERGENCIA: Datos falsos locales corregidos (Strings con comillas)
+            println("⚠️ Backend no disponible, usando datos falsos locales.")
+            listOf(
+                Evento(
+                    id = 1,
+                    titulo = "Final Liga Mendocina",
+                    resumen = "Estadio Malvinas",
+                    descripcion = "Gran final de basket regional",
+                    fecha = "20/10/2025",   // <--- CORREGIDO: Ahora es String
+                    imagen = "",            // <--- CORREGIDO: Ahora es String
+                    filaAsientos = 10,
+                    columnAsientos = 6
+                ),
+                Evento(
+                    id = 2,
+                    titulo = "Conferencia Tech",
+                    resumen = "Auditorio Ángel Bustelo",
+                    descripcion = "Charlas sobre Kotlin y Java",
+                    fecha = "15/11/2025",   // <--- CORREGIDO
+                    imagen = "",            // <--- CORREGIDO
+                    filaAsientos = 8,
+                    columnAsientos = 8
+                )
+            )
         }
     }
 
-    // --- 2. BLOQUEAR ASIENTO (Proxy) ---
+    // --- 2. BLOQUEAR ASIENTO (MODO SIMULACIÓN ACTIVADO 🛠️) ---
     suspend fun bloquearAsiento(eventoId: Long, fila: Int, col: Int): Boolean {
+        // 👇 1. COMENTAMOS LA LLAMADA REAL PARA QUE NO FALLE
+        /*
         return try {
             val response = client.post("$proxyUrl/bloquear") {
                 contentType(ContentType.Application.Json)
                 setBody(SolicitudBloqueo(eventoId, fila, col))
             }
-
             if (response.status == HttpStatusCode.OK) {
                 val respuesta = response.body<RespuestaBloqueo>()
                 respuesta.resultado
@@ -63,42 +86,15 @@ class EventoService {
             println("❌ Error Proxy: ${e.message}")
             false
         }
+        */
+
+        // 👇 2. SIMULACIÓN DE ÉXITO (Para probar UI local y ver color VIOLETA)
+        println("🔧 SIMULACIÓN: Bloqueando Fila $fila - Col $col localmente...")
+        delay(300) // Simulamos un pequeño tiempo de espera
+        return true // Siempre decimos que SÍ para que se pinte violeta
     }
 
-    // --- 3. REALIZAR VENTA (Backend) ---
-    suspend fun realizarVenta(
-        token: String,
-        eventoId: Long,
-        asientos: List<AsientoVenta>
-    ): Boolean {
-        return try {
-            val request = VentaRequest(
-                eventoId = eventoId,
-                asientos = asientos,
-                precioVenta = 0.0
-            )
-
-            val response = client.post("$backendUrl/realizar-venta") {
-                header("Authorization", "Bearer $token")
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }
-
-            // 👇 DETECCIÓN DE TOKEN VENCIDO
-            if (response.status == HttpStatusCode.Unauthorized) {
-                println("🚨 Token vencido al comprar. Cerrando sesión...")
-                SessionManager.onSessionExpired?.invoke() // ¡ALARMA!
-                return false
-            }
-
-            response.status == HttpStatusCode.OK
-        } catch (e: Exception) {
-            println("❌ Error Venta: ${e.message}")
-            false
-        }
-    }
-
-    // --- 4. CONSULTAR OCUPADOS (Proxy) ---
+    // --- 3. CONSULTAR OCUPADOS ---
     suspend fun obtenerOcupados(eventoId: Long): List<String> {
         return try {
             val response = client.get("$proxyUrl/ocupados/$eventoId")
@@ -108,32 +104,29 @@ class EventoService {
                 emptyList()
             }
         } catch (e: Exception) {
-            println("❌ Error consultando ocupados: ${e.message}")
+            println("⚠️ No se pudo conectar al Proxy, asumiendo 0 ocupados.")
             emptyList()
         }
     }
 
-    // --- 5. SESIONES (Proxy) ---
+    // --- 4. REALIZAR VENTA ---
+    suspend fun realizarVenta(
+        token: String,
+        eventoId: Long,
+        asientos: List<AsientoVenta>
+    ): Boolean {
+        println("💰 Simulando venta de ${asientos.size} entradas...")
+        delay(1000) // Simulamos proceso de venta
+        return true // Decimos que salió bien
+    }
+
+    // --- 5. SESIONES ---
     suspend fun guardarVisita(usuario: String, eventoId: Long) {
-        try {
-            client.post("$proxyUrl/sesion/$usuario/visita/$eventoId")
-        } catch (e: Exception) {
-            println("⚠️ No se pudo guardar sesión: ${e.message}")
-        }
+        // No hacemos nada en simulación para no romper
     }
 
     suspend fun recuperarUltimaVisita(usuario: String): Long? {
-        return try {
-            val response = client.get("$proxyUrl/sesion/$usuario/ultima_visita")
-            if (response.status == HttpStatusCode.OK) {
-                val body = response.body<String>()
-                val numero = Regex("[0-9]+").find(body)?.value
-                numero?.toLongOrNull()
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null
-        }
+        // Retornamos null para ir siempre al Home en simulación
+        return null
     }
 }
