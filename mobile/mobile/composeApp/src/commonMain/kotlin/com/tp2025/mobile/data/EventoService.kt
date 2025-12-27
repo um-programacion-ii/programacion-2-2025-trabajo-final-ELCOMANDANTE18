@@ -8,7 +8,6 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 import com.tp2025.mobile.auth.SessionManager
-import kotlinx.coroutines.delay
 
 class EventoService {
 
@@ -21,11 +20,11 @@ class EventoService {
         }
     }
 
-    // URLs (No importan ahora porque estamos simulando, pero las dejamos listas)
+    // 📡 IPs REALES DE TU PC (Para Celular Físico)
     private val backendUrl = "http://192.168.100.14:8080/api"
     private val proxyUrl = "http://192.168.100.14:8081/api/proxy"
 
-    // --- 1. LEER EVENTOS ---
+    // --- 1. LEER EVENTOS (REAL) ---
     suspend fun obtenerEventos(token: String): List<Evento> {
         return try {
             val response = client.get("$backendUrl/eventos") {
@@ -38,63 +37,73 @@ class EventoService {
                 return emptyList()
             }
 
+            // Retorna los datos reales de la base de datos
             response.body()
         } catch (e: Exception) {
-            // MOCK DE EMERGENCIA: Datos falsos locales corregidos (Strings con comillas)
-            println("⚠️ Backend no disponible, usando datos falsos locales.")
-            listOf(
-                Evento(
-                    id = 1,
-                    titulo = "Final Liga Mendocina",
-                    resumen = "Estadio Malvinas",
-                    descripcion = "Gran final de basket regional",
-                    fecha = "20/10/2025",   // <--- CORREGIDO: Ahora es String
-                    imagen = "",            // <--- CORREGIDO: Ahora es String
-                    filaAsientos = 10,
-                    columnAsientos = 6
-                ),
-                Evento(
-                    id = 2,
-                    titulo = "Conferencia Tech",
-                    resumen = "Auditorio Ángel Bustelo",
-                    descripcion = "Charlas sobre Kotlin y Java",
-                    fecha = "15/11/2025",   // <--- CORREGIDO
-                    imagen = "",            // <--- CORREGIDO
-                    filaAsientos = 8,
-                    columnAsientos = 8
-                )
-            )
+            println("❌ Error crítico al conectar con Backend ($backendUrl): ${e.message}")
+            // En producción no inventamos datos, devolvemos vacío para no confundir al usuario
+            emptyList()
         }
     }
 
-    // --- 2. BLOQUEAR ASIENTO (MODO SIMULACIÓN ACTIVADO 🛠️) ---
+    // --- 2. BLOQUEAR ASIENTO (REAL) ---
     suspend fun bloquearAsiento(eventoId: Long, fila: Int, col: Int): Boolean {
-        // 👇 1. COMENTAMOS LA LLAMADA REAL PARA QUE NO FALLE
-        /*
         return try {
+            // Llamada real al endpoint
+            // Nota: Asegúrate de tener la data class SolicitudBloqueo creada
             val response = client.post("$proxyUrl/bloquear") {
                 contentType(ContentType.Application.Json)
-                setBody(SolicitudBloqueo(eventoId, fila, col))
+                setBody(mapOf("eventoId" to eventoId, "fila" to fila, "col" to col))
             }
+
             if (response.status == HttpStatusCode.OK) {
-                val respuesta = response.body<RespuestaBloqueo>()
-                respuesta.resultado
+                // Si el server responde OK, el asiento es tuyo
+                true
             } else {
+                println("⚠️ El servidor rechazó el bloqueo: ${response.status}")
                 false
             }
         } catch (e: Exception) {
-            println("❌ Error Proxy: ${e.message}")
+            println("❌ Error de red al bloquear: ${e.message}")
             false
         }
-        */
-
-        // 👇 2. SIMULACIÓN DE ÉXITO (Para probar UI local y ver color VIOLETA)
-        println("🔧 SIMULACIÓN: Bloqueando Fila $fila - Col $col localmente...")
-        delay(300) // Simulamos un pequeño tiempo de espera
-        return true // Siempre decimos que SÍ para que se pinte violeta
     }
 
-    // --- 3. CONSULTAR OCUPADOS ---
+    // --- 3. REALIZAR VENTA (REAL) ---
+    suspend fun realizarVenta(
+        token: String,
+        eventoId: Long,
+        asientos: List<AsientoVenta>
+    ): Boolean {
+        return try {
+            println("💰 Enviando venta al Backend...")
+            val response = client.post("$backendUrl/ventas") {
+                header("Authorization", "Bearer $token")
+                contentType(ContentType.Application.Json)
+                // Enviamos el objeto de venta completo
+                setBody(mapOf(
+                    "eventoId" to eventoId,
+                    "asientos" to asientos,
+                    "fecha" to "2025-12-27T10:00:00Z" // O la fecha actual
+                ))
+            }
+
+            if (response.status == HttpStatusCode.Created || response.status == HttpStatusCode.OK) {
+                println("✅ Venta registrada correctamente en el Backend.")
+                true
+            } else {
+                println("❌ Error en la venta. Status: ${response.status}")
+                false
+            }
+        } catch (e: Exception) {
+            println("❌ Error de conexión al vender: ${e.message}")
+            false
+        }
+    }
+
+    // --- 4. OTROS ---
+
+    // Este método sigue siendo útil si quieres llamar al Proxy directamente sin usar el Repository
     suspend fun obtenerOcupados(eventoId: Long): List<String> {
         return try {
             val response = client.get("$proxyUrl/ocupados/$eventoId")
@@ -104,29 +113,16 @@ class EventoService {
                 emptyList()
             }
         } catch (e: Exception) {
-            println("⚠️ No se pudo conectar al Proxy, asumiendo 0 ocupados.")
+            println("⚠️ Error obteniendo ocupados: ${e.message}")
             emptyList()
         }
     }
 
-    // --- 4. REALIZAR VENTA ---
-    suspend fun realizarVenta(
-        token: String,
-        eventoId: Long,
-        asientos: List<AsientoVenta>
-    ): Boolean {
-        println("💰 Simulando venta de ${asientos.size} entradas...")
-        delay(1000) // Simulamos proceso de venta
-        return true // Decimos que salió bien
-    }
-
-    // --- 5. SESIONES ---
     suspend fun guardarVisita(usuario: String, eventoId: Long) {
-        // No hacemos nada en simulación para no romper
+        // Implementación opcional de analíticas
     }
 
     suspend fun recuperarUltimaVisita(usuario: String): Long? {
-        // Retornamos null para ir siempre al Home en simulación
         return null
     }
 }

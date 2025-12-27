@@ -4,7 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.* import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +26,8 @@ import com.tp2025.mobile.auth.SessionManager
 import com.tp2025.mobile.data.AsientoVenta
 import com.tp2025.mobile.data.Evento
 import com.tp2025.mobile.data.EventoService
+// 👇 1. IMPORT NUEVO
+import com.tp2025.mobile.data.network.ProxyRepository
 import kotlinx.coroutines.launch
 
 @Composable
@@ -33,6 +36,9 @@ fun AsientosScreen(evento: Evento, onBack: () -> Unit) {
     val columnas = evento.columnAsientos ?: 10
 
     val servicio = remember { EventoService() }
+    // 👇 2. INSTANCIA DEL REPOSITORIO PROXY
+    val proxyRepo = remember { ProxyRepository() }
+
     val scope = rememberCoroutineScope()
     val scaffoldState = rememberScaffoldState()
 
@@ -44,9 +50,12 @@ fun AsientosScreen(evento: Evento, onBack: () -> Unit) {
 
     // 1. CARGA INICIAL
     LaunchedEffect(Unit) {
-        // Traemos los ocupados reales del Proxy
-        ocupadosRemotos = servicio.obtenerOcupados(evento.id)
+        println("📱 App: Consultando al Proxy (8081) los asientos ocupados...")
 
+        // 👇 3. LLAMADA AL PROXY (Trae los datos de Redis/Kafka)
+        ocupadosRemotos = proxyRepo.obtenerAsientosOcupados(evento.id)
+
+        // Guardamos visita en backend local (Mantiene tu lógica de negocio)
         val usuario = SessionManager.currentUser ?: "anonimo"
         println("📱 App: Guardando sesión para: $usuario en evento ${evento.id}")
         servicio.guardarVisita(usuario, evento.id)
@@ -64,7 +73,7 @@ fun AsientosScreen(evento: Evento, onBack: () -> Unit) {
                 },
                 backgroundColor = MaterialTheme.colors.primary,
                 contentColor = Color.White,
-                modifier = Modifier.statusBarsPadding(), // Evita choque arriba
+                modifier = Modifier.statusBarsPadding(),
                 elevation = 8.dp
             )
         },
@@ -76,7 +85,7 @@ fun AsientosScreen(evento: Evento, onBack: () -> Unit) {
                     backgroundColor = MaterialTheme.colors.secondary,
                     contentColor = Color.White,
                     icon = { Text("🛒") },
-                    modifier = Modifier.navigationBarsPadding() // Evita choque abajo del FAB
+                    modifier = Modifier.navigationBarsPadding()
                 )
             }
         }
@@ -131,6 +140,7 @@ fun AsientosScreen(evento: Evento, onBack: () -> Unit) {
 
                             // Lógica de Estado
                             val esMio = misAsientos.any { it.fila == fila && it.columna == col }
+                            // Esto chequea si el Proxy dijo que estaba ocupado
                             val esOcupadoRemoto = ocupadosRemotos.contains("$fila-$col")
 
                             AsientoItem(
@@ -241,7 +251,7 @@ fun AsientoItem(
     val colorFondo = when {
         cargando -> Color(0xFFFFEE58) // Amarillo
         esMio -> Color(0xFF6200EE)    // Violeta
-        esOcupadoRemoto -> Color(0xFFE53935) // Rojo
+        esOcupadoRemoto -> Color(0xFFE53935) // Rojo (viene del Proxy)
         else -> Color.White           // Blanco
     }
 
@@ -255,7 +265,6 @@ fun AsientoItem(
             .clip(RoundedCornerShape(8.dp))
             .background(colorFondo)
             .border(1.dp, colorBorde, RoundedCornerShape(8.dp))
-            // 👇 AQUÍ ESTÁ LA LÓGICA CON LOGS QUE NECESITAMOS 👇
             .clickable(enabled = habilitado) {
                 println("👆 DEBUG: Click en asiento Fila $fila - Col $col")
 
