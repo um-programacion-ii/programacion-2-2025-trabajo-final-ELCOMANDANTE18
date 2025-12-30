@@ -6,13 +6,17 @@ import kotlinx.coroutines.launch
 import com.tp2025.mobile.auth.SessionManager
 import com.tp2025.mobile.ui.HomeScreen
 import com.tp2025.mobile.ui.AsientosScreen
-import com.tp2025.mobile.ui.LoginScreen // Importamos la nueva pantalla
+import com.tp2025.mobile.ui.LoginScreen
+import com.tp2025.mobile.ui.RegistroScreen
+import com.tp2025.mobile.ui.EventoDetalleScreen // <--- IMPORTANTE
 import com.tp2025.mobile.data.Evento
 import com.tp2025.mobile.data.EventoService
 
 sealed class Screen {
     object Login : Screen()
+    object Registro : Screen()
     object Home : Screen()
+    data class Detalle(val evento: Evento) : Screen() // <--- NUEVA PANTALLA
     data class Asientos(val evento: Evento) : Screen()
 }
 
@@ -28,7 +32,6 @@ fun App() {
         // 🚨 ALARMA DE SESIÓN (Global)
         DisposableEffect(Unit) {
             SessionManager.onSessionExpired = {
-                println("⚠️ App: Sesión expirada. Volviendo al Login.")
                 SessionManager.clear()
                 token = null
                 currentScreen = Screen.Login
@@ -42,20 +45,15 @@ fun App() {
                 LoginScreen(
                     onLoginSuccess = { nuevoToken, usuario ->
                         token = nuevoToken
-
-                        // 🧠 Lógica Inteligente: ¿Estaba viendo un evento antes?
+                        // Restaurar sesión si existía
                         scope.launch {
-                            println("🔍 Buscando última visita para: $usuario")
                             val ultimoEventoId = eventoService.recuperarUltimaVisita(usuario)
-
                             if (ultimoEventoId != null) {
-                                // Si tenía una visita, buscamos el evento completo para restaurarlo
                                 val eventos = eventoService.obtenerEventos(nuevoToken)
                                 val eventoAntiguo = eventos.find { it.id == ultimoEventoId }
-
                                 if (eventoAntiguo != null) {
-                                    println("✅ Restaurando sesión en evento: ${eventoAntiguo.titulo}")
-                                    currentScreen = Screen.Asientos(eventoAntiguo)
+                                    // Al restaurar, mejor ir al detalle que directo a asientos
+                                    currentScreen = Screen.Detalle(eventoAntiguo)
                                 } else {
                                     currentScreen = Screen.Home
                                 }
@@ -63,7 +61,15 @@ fun App() {
                                 currentScreen = Screen.Home
                             }
                         }
-                    }
+                    },
+                    onIrARegistro = { currentScreen = Screen.Registro }
+                )
+            }
+
+            is Screen.Registro -> {
+                RegistroScreen(
+                    onBack = { currentScreen = Screen.Login },
+                    onRegistroSuccess = { currentScreen = Screen.Login }
                 )
             }
 
@@ -72,7 +78,8 @@ fun App() {
                     HomeScreen(
                         token = token!!,
                         onEventoClick = { eventoSeleccionado ->
-                            currentScreen = Screen.Asientos(eventoSeleccionado)
+                            // AQUI EL CAMBIO: Vamos al Detalle primero
+                            currentScreen = Screen.Detalle(eventoSeleccionado)
                         },
                         onLogout = {
                             SessionManager.clear()
@@ -85,13 +92,24 @@ fun App() {
                 }
             }
 
+            // --- PANTALLA DE DETALLE ---
+            is Screen.Detalle -> {
+                EventoDetalleScreen(
+                    evento = screen.evento,
+                    onBack = { currentScreen = Screen.Home },
+                    onComprarClick = {
+                        // Del detalle pasamos a los asientos
+                        currentScreen = Screen.Asientos(screen.evento)
+                    }
+                )
+            }
+
             is Screen.Asientos -> {
                 AsientosScreen(
                     evento = screen.evento,
                     onBack = {
-                        // Al volver, limpiamos la "última visita" si quisieras,
-                        // o simplemente vamos al Home
-                        currentScreen = Screen.Home
+                        // Al volver de asientos, regresamos al detalle
+                        currentScreen = Screen.Detalle(screen.evento)
                     }
                 )
             }

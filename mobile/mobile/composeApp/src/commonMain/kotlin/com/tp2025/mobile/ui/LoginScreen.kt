@@ -1,16 +1,12 @@
 package com.tp2025.mobile.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.runtime.*
@@ -18,141 +14,129 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tp2025.mobile.auth.AuthService
-import com.tp2025.mobile.auth.SessionManager
 import kotlinx.coroutines.launch
+import com.tp2025.mobile.auth.AuthService
 
 @Composable
-fun LoginScreen(onLoginSuccess: (String, String) -> Unit) {
-    // Estado local
-    var username by remember { mutableStateOf("admin") }
-    var password by remember { mutableStateOf("admin") }
+fun LoginScreen(
+    onLoginSuccess: (String, String) -> Unit, // Token, Usuario
+    onIrARegistro: () -> Unit // Para navegar al registro
+) {
+    var usuario by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    val authService = remember { AuthService() }
     val scope = rememberCoroutineScope()
-    val scrollState = rememberScrollState()
+    val authService = remember { AuthService() }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF5F5F5)) // Un gris muy suave de fondo
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5)),
         contentAlignment = Alignment.Center
     ) {
         Card(
+            modifier = Modifier.padding(24.dp).fillMaxWidth(),
             elevation = 8.dp,
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .verticalScroll(scrollState) // Responsive: Scrolleable si el teclado tapa
+            shape = RoundedCornerShape(16.dp)
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Título
                 Text(
-                    text = "Entradera Móvil 🎟️",
-                    style = MaterialTheme.typography.h5,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colors.primary
+                    text = "Entradera Móvil 🎫",
+                    color = Color(0xFF6200EE),
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
                 )
+                Text("Bienvenido de nuevo", color = Color.Gray, fontSize = 14.sp)
 
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Bienvenido de nuevo",
-                    style = MaterialTheme.typography.body2,
-                    color = Color.Gray
-                )
+                Spacer(modifier = Modifier.height(24.dp))
 
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Input Usuario
+                // INPUT USUARIO
                 OutlinedTextField(
-                    value = username,
-                    onValueChange = { username = it; errorMessage = null },
+                    value = usuario,
+                    onValueChange = { usuario = it },
                     label = { Text("Usuario") },
                     leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(8.dp)
+                    singleLine = true
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Input Password
+                // INPUT PASSWORD
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it; errorMessage = null },
+                    onValueChange = { password = it },
                     label = { Text("Contraseña") },
                     leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
-                        val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(image, contentDescription = "Toggle password")
+                            Icon(if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null)
                         }
                     },
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(8.dp)
+                    singleLine = true
                 )
 
+                // MENSAJE DE ERROR (SI HAY)
                 if (errorMessage != null) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = errorMessage!!,
-                        color = MaterialTheme.colors.error,
-                        style = MaterialTheme.typography.caption
-                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(errorMessage!!, color = Color.Red, fontSize = 12.sp)
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Botón
+                // BOTÓN INGRESAR (LÓGICA CORREGIDA AQUÍ)
                 Button(
                     onClick = {
-                        if (isLoading) return@Button
-                        isLoading = true
-
                         scope.launch {
-                            val resultado = authService.login(username, password)
+                            isLoading = true
+                            errorMessage = null
 
-                            resultado.onSuccess { token ->
-                                SessionManager.jwtToken = token
-                                SessionManager.currentUser = username
-                                onLoginSuccess(token, username) // Avisamos al padre (App.kt)
-                            }.onFailure { error ->
-                                errorMessage = "Error: ${error.message}"
-                                isLoading = false
+                            try {
+                                // 1. Obtenemos el resultado (Success o Failure)
+                                val resultado = authService.login(usuario, password)
+
+                                // 2. Manejamos el éxito
+                                resultado.onSuccess { token ->
+                                    onLoginSuccess(token, usuario)
+                                }
+
+                                // 3. Manejamos el error
+                                resultado.onFailure { error ->
+                                    errorMessage = "Error: ${error.message ?: "Credenciales inválidas"}"
+                                }
+                            } catch (e: Exception) {
+                                errorMessage = "Error inesperado: ${e.message}"
                             }
+
+                            isLoading = false
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
                     shape = RoundedCornerShape(8.dp),
                     enabled = !isLoading
                 ) {
                     if (isLoading) {
-                        CircularProgressIndicator(
-                            color = Color.White,
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp
-                        )
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                     } else {
-                        Text("INGRESAR", fontSize = 16.sp)
+                        Text("INGRESAR")
                     }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // BOTÓN IR A REGISTRO
+                TextButton(onClick = onIrARegistro) {
+                    Text("¿No tienes cuenta? Regístrate aquí")
                 }
             }
         }
