@@ -7,7 +7,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
-import com.tp2025.mobile.auth.SessionManager // Importante para llamar a la alarma
+import com.tp2025.mobile.auth.SessionManager
 
 class EventoService {
 
@@ -20,85 +20,90 @@ class EventoService {
         }
     }
 
-    // URLs
+    // 📡 IPs REALES DE TU PC (Para Celular Físico)
     private val backendUrl = "http://192.168.100.14:8080/api"
     private val proxyUrl = "http://192.168.100.14:8081/api/proxy"
 
-    // --- 1. LEER EVENTOS (Backend) ---
+    // --- 1. LEER EVENTOS (REAL) ---
     suspend fun obtenerEventos(token: String): List<Evento> {
         return try {
             val response = client.get("$backendUrl/eventos") {
                 header("Authorization", "Bearer $token")
             }
 
-            // 👇 DETECCIÓN DE TOKEN VENCIDO
             if (response.status == HttpStatusCode.Unauthorized) {
                 println("🚨 Token vencido. Cerrando sesión...")
-                SessionManager.onSessionExpired?.invoke() // ¡TOCAMOS LA ALARMA!
+                SessionManager.onSessionExpired?.invoke()
                 return emptyList()
             }
 
+            // Retorna los datos reales de la base de datos
             response.body()
         } catch (e: Exception) {
-            println("❌ Error bajando eventos: ${e.message}")
+            println("❌ Error crítico al conectar con Backend ($backendUrl): ${e.message}")
+            // En producción no inventamos datos, devolvemos vacío para no confundir al usuario
             emptyList()
         }
     }
 
-    // --- 2. BLOQUEAR ASIENTO (Proxy) ---
+    // --- 2. BLOQUEAR ASIENTO (REAL) ---
     suspend fun bloquearAsiento(eventoId: Long, fila: Int, col: Int): Boolean {
         return try {
+            // Llamada real al endpoint
+            // Nota: Asegúrate de tener la data class SolicitudBloqueo creada
             val response = client.post("$proxyUrl/bloquear") {
                 contentType(ContentType.Application.Json)
-                setBody(SolicitudBloqueo(eventoId, fila, col))
+                setBody(mapOf("eventoId" to eventoId, "fila" to fila, "col" to col))
             }
 
             if (response.status == HttpStatusCode.OK) {
-                val respuesta = response.body<RespuestaBloqueo>()
-                respuesta.resultado
+                // Si el server responde OK, el asiento es tuyo
+                true
             } else {
+                println("⚠️ El servidor rechazó el bloqueo: ${response.status}")
                 false
             }
         } catch (e: Exception) {
-            println("❌ Error Proxy: ${e.message}")
+            println("❌ Error de red al bloquear: ${e.message}")
             false
         }
     }
 
-    // --- 3. REALIZAR VENTA (Backend) ---
+    // --- 3. REALIZAR VENTA (REAL) ---
     suspend fun realizarVenta(
         token: String,
         eventoId: Long,
         asientos: List<AsientoVenta>
     ): Boolean {
         return try {
-            val request = VentaRequest(
-                eventoId = eventoId,
-                asientos = asientos,
-                precioVenta = 0.0
-            )
-
-            val response = client.post("$backendUrl/realizar-venta") {
+            println("💰 Enviando venta al Backend...")
+            val response = client.post("$backendUrl/ventas") {
                 header("Authorization", "Bearer $token")
                 contentType(ContentType.Application.Json)
-                setBody(request)
+                // Enviamos el objeto de venta completo
+                setBody(mapOf(
+                    "eventoId" to eventoId,
+                    "asientos" to asientos,
+                    "fecha" to "2025-12-27T10:00:00Z" // O la fecha actual
+                ))
             }
 
-            // 👇 DETECCIÓN DE TOKEN VENCIDO
-            if (response.status == HttpStatusCode.Unauthorized) {
-                println("🚨 Token vencido al comprar. Cerrando sesión...")
-                SessionManager.onSessionExpired?.invoke() // ¡ALARMA!
-                return false
+            if (response.status == HttpStatusCode.Created || response.status == HttpStatusCode.OK) {
+                println("✅ Venta registrada correctamente en el Backend.")
+                true
+            } else {
+                println("❌ Error en la venta. Status: ${response.status}")
+                false
             }
-
-            response.status == HttpStatusCode.OK
         } catch (e: Exception) {
-            println("❌ Error Venta: ${e.message}")
+            println("❌ Error de conexión al vender: ${e.message}")
             false
         }
     }
 
-    // --- 4. CONSULTAR OCUPADOS (Proxy) ---
+    // --- 4. OTROS ---
+
+    // Este método sigue siendo útil si quieres llamar al Proxy directamente sin usar el Repository
     suspend fun obtenerOcupados(eventoId: Long): List<String> {
         return try {
             val response = client.get("$proxyUrl/ocupados/$eventoId")
@@ -108,32 +113,16 @@ class EventoService {
                 emptyList()
             }
         } catch (e: Exception) {
-            println("❌ Error consultando ocupados: ${e.message}")
+            println("⚠️ Error obteniendo ocupados: ${e.message}")
             emptyList()
         }
     }
 
-    // --- 5. SESIONES (Proxy) ---
     suspend fun guardarVisita(usuario: String, eventoId: Long) {
-        try {
-            client.post("$proxyUrl/sesion/$usuario/visita/$eventoId")
-        } catch (e: Exception) {
-            println("⚠️ No se pudo guardar sesión: ${e.message}")
-        }
+        // Implementación opcional de analíticas
     }
 
     suspend fun recuperarUltimaVisita(usuario: String): Long? {
-        return try {
-            val response = client.get("$proxyUrl/sesion/$usuario/ultima_visita")
-            if (response.status == HttpStatusCode.OK) {
-                val body = response.body<String>()
-                val numero = Regex("[0-9]+").find(body)?.value
-                numero?.toLongOrNull()
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null
-        }
+        return null
     }
 }
