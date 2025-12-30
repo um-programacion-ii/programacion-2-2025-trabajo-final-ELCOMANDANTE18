@@ -8,16 +8,21 @@ import com.tp2025.mobile.ui.HomeScreen
 import com.tp2025.mobile.ui.AsientosScreen
 import com.tp2025.mobile.ui.LoginScreen
 import com.tp2025.mobile.ui.RegistroScreen
-import com.tp2025.mobile.ui.EventoDetalleScreen // <--- IMPORTANTE
+import com.tp2025.mobile.ui.EventoDetalleScreen
+import com.tp2025.mobile.ui.DetalleVentaScreen // <--- NUEVA PANTALLA
 import com.tp2025.mobile.data.Evento
 import com.tp2025.mobile.data.EventoService
+import com.tp2025.mobile.data.AsientoVenta // <--- Necesario para pasar la lista
 
+// 1. DEFINIMOS LAS PANTALLAS (Rutas)
 sealed class Screen {
     object Login : Screen()
     object Registro : Screen()
     object Home : Screen()
-    data class Detalle(val evento: Evento) : Screen() // <--- NUEVA PANTALLA
+    data class Detalle(val evento: Evento) : Screen()
     data class Asientos(val evento: Evento) : Screen()
+    // 👇 NUEVA RUTA: Recibe el evento y los asientos que elegiste
+    data class DetalleVenta(val evento: Evento, val asientos: List<AsientoVenta>) : Screen()
 }
 
 @Composable
@@ -45,14 +50,13 @@ fun App() {
                 LoginScreen(
                     onLoginSuccess = { nuevoToken, usuario ->
                         token = nuevoToken
-                        // Restaurar sesión si existía
+                        // Lógica de restauración de sesión (opcional)
                         scope.launch {
                             val ultimoEventoId = eventoService.recuperarUltimaVisita(usuario)
                             if (ultimoEventoId != null) {
                                 val eventos = eventoService.obtenerEventos(nuevoToken)
                                 val eventoAntiguo = eventos.find { it.id == ultimoEventoId }
                                 if (eventoAntiguo != null) {
-                                    // Al restaurar, mejor ir al detalle que directo a asientos
                                     currentScreen = Screen.Detalle(eventoAntiguo)
                                 } else {
                                     currentScreen = Screen.Home
@@ -78,7 +82,6 @@ fun App() {
                     HomeScreen(
                         token = token!!,
                         onEventoClick = { eventoSeleccionado ->
-                            // AQUI EL CAMBIO: Vamos al Detalle primero
                             currentScreen = Screen.Detalle(eventoSeleccionado)
                         },
                         onLogout = {
@@ -92,24 +95,44 @@ fun App() {
                 }
             }
 
-            // --- PANTALLA DE DETALLE ---
             is Screen.Detalle -> {
                 EventoDetalleScreen(
                     evento = screen.evento,
                     onBack = { currentScreen = Screen.Home },
                     onComprarClick = {
-                        // Del detalle pasamos a los asientos
                         currentScreen = Screen.Asientos(screen.evento)
                     }
                 )
             }
 
+            // 👇 PANTALLA DE SELECCIÓN DE ASIENTOS
             is Screen.Asientos -> {
                 AsientosScreen(
                     evento = screen.evento,
+                    token = token ?: "",
                     onBack = {
-                        // Al volver de asientos, regresamos al detalle
                         currentScreen = Screen.Detalle(screen.evento)
+                    },
+                    onContinuar = { listaAsientos ->
+                        // Al dar click en "Continuar", vamos al Detalle de Venta
+                        currentScreen = Screen.DetalleVenta(screen.evento, listaAsientos)
+                    }
+                )
+            }
+
+            // 👇 NUEVA PANTALLA: RESUMEN Y PAGO FINAL
+            is Screen.DetalleVenta -> {
+                DetalleVentaScreen(
+                    evento = screen.evento,
+                    asientosSeleccionados = screen.asientos,
+                    token = token ?: "",
+                    onBack = {
+                        // Si vuelve atrás, regresa al mapa de asientos
+                        currentScreen = Screen.Asientos(screen.evento)
+                    },
+                    onCompraExitosa = {
+                        // ¡Éxito! Volvemos al Home para comprar otra cosa
+                        currentScreen = Screen.Home
                     }
                 )
             }
