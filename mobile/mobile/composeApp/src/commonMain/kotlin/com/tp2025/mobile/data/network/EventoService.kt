@@ -1,17 +1,25 @@
-package com.tp2025.mobile.data
+package com.tp2025.mobile.data.network
 
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.request.*
-import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
+import com.tp2025.mobile.data.local.SessionManager
+import com.tp2025.mobile.domain.model.AsientoVenta
+import com.tp2025.mobile.domain.model.Evento
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
-import com.tp2025.mobile.auth.SessionManager
 
 class EventoService {
 
     private val client = HttpClient {
+        // CORRECCIÓN: Se usa 'install' directamente, sin 'HttpClientConfig.'
         install(ContentNegotiation) {
             json(Json {
                 ignoreUnknownKeys = true
@@ -20,7 +28,7 @@ class EventoService {
         }
     }
 
-    // 📡 IPs REALES DE TU PC (Para Celular Físico)
+    // 📡 IPs REALES DE TU PC (Asegúrate que tu celular esté en la misma red Wi-Fi)
     private val backendUrl = "http://192.168.100.14:8080/api"
     private val proxyUrl = "http://192.168.100.14:8081/api/proxy"
 
@@ -41,7 +49,7 @@ class EventoService {
             response.body()
         } catch (e: Exception) {
             println("❌ Error crítico al conectar con Backend ($backendUrl): ${e.message}")
-            // En producción no inventamos datos, devolvemos vacío para no confundir al usuario
+            // En producción devolvemos vacío para no crashear
             emptyList()
         }
     }
@@ -49,15 +57,12 @@ class EventoService {
     // --- 2. BLOQUEAR ASIENTO (REAL) ---
     suspend fun bloquearAsiento(eventoId: Long, fila: Int, col: Int): Boolean {
         return try {
-            // Llamada real al endpoint
-            // Nota: Asegúrate de tener la data class SolicitudBloqueo creada
             val response = client.post("$proxyUrl/bloquear") {
                 contentType(ContentType.Application.Json)
                 setBody(mapOf("eventoId" to eventoId, "fila" to fila, "col" to col))
             }
 
             if (response.status == HttpStatusCode.OK) {
-                // Si el server responde OK, el asiento es tuyo
                 true
             } else {
                 println("⚠️ El servidor rechazó el bloqueo: ${response.status}")
@@ -84,7 +89,8 @@ class EventoService {
                 setBody(mapOf(
                     "eventoId" to eventoId,
                     "asientos" to asientos,
-                    "fecha" to "2025-12-27T10:00:00Z" // O la fecha actual
+                    // Usamos una fecha fija válida ISO-8601 para evitar problemas de parsing en JHipster por ahora
+                    "fecha" to "2025-12-30T10:00:00Z"
                 ))
             }
 
@@ -103,7 +109,6 @@ class EventoService {
 
     // --- 4. OTROS ---
 
-    // Este método sigue siendo útil si quieres llamar al Proxy directamente sin usar el Repository
     suspend fun obtenerOcupados(eventoId: Long): List<String> {
         return try {
             val response = client.get("$proxyUrl/ocupados/$eventoId")

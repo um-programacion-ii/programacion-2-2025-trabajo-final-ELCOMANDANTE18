@@ -1,6 +1,5 @@
-package com.tp2025.mobile.ui
+package com.tp2025.mobile.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,9 +17,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.tp2025.mobile.data.Evento
-import com.tp2025.mobile.data.EventoService
+import com.tp2025.mobile.domain.model.Evento
+import com.tp2025.mobile.data.network.EventoService
 
 @Composable
 fun HomeScreen(

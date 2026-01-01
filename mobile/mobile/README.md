@@ -1,95 +1,61 @@
-This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop (JVM), Server.
+# 📱 Entradera - Cliente Móvil
 
-* [/composeApp](./composeApp/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./composeApp/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./composeApp/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./composeApp/src/jvmMain/kotlin)
-    folder is the appropriate location.
+Cliente nativo Android desarrollado con **Kotlin Multiplatform (KMP)** y **Jetpack Compose**. Esta aplicación implementa patrones de diseño modernos para garantizar la escalabilidad y una experiencia de usuario fluida.
 
-* [/iosApp](./iosApp/iosApp) contains iOS applications. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
+## 🎨 Arquitectura: MVVM + Clean Architecture
 
-* [/server](./server/src/main/kotlin) is for the Ktor server application.
+El proyecto ha sido refactorizado para seguir el patrón **Model-View-ViewModel**, desacoplando totalmente la interfaz gráfica de la lógica de negocio y de red.
 
-* [/shared](./shared/src) is for the code that will be shared between all targets in the project.
-  The most important subfolder is [commonMain](./shared/src/commonMain/kotlin). If preferred, you
-  can add code to the platform-specific folders here too.
+### Componentes de la Arquitectura
+1.  **View (`ui/screens`):** Componentes visuales "tontos" desarrollados en Compose. No contienen lógica de negocio, solo observan estados y emiten eventos.
+2.  **ViewModel (`ui/viewmodel`):** (NUEVO) Gestionan el estado de la UI (`StateFlow` / `MutableState`) y actúan como intermediarios entre la Vista y la Capa de Datos.
+3.  **Model (`domain.model`):** Clases de datos puras que representan el negocio (`Evento`, `AsientoVenta`).
+4.  **Data (`data/network`, `data/local`):** Repositorios encargados de obtener datos del Backend, del Proxy o del almacenamiento local.
 
-### Build and Run Android Application
+## 📂 Estructura del Código
 
-To build and run the development version of the Android app, use the run configuration from the run widget
-in your IDE’s toolbar or build it directly from the terminal:
-- on macOS/Linux
-  ```shell
-  ./gradlew :composeApp:assembleDebug
-  ```
-- on Windows
-  ```shell
-  .\gradlew.bat :composeApp:assembleDebug
-  ```
+Basado en la estructura actual del proyecto:
 
-### Build and Run Desktop (JVM) Application
+```text
+com.tp2025.mobile
+├── auth/                # Lógica específica de autenticación
+├── data/                # Capa de Datos (Data Layer)
+│   ├── local/           # Persistencia local (SessionManager para Tokens)
+│   └── network/         # Clientes HTTP (KtorClient, EventoService, ProxyRepository)
+├── domain.model/        # Entidades de Negocio (Core)
+│   ├── Evento.kt
+│   └── AsientoVenta.kt
+├── ui/                  # Capa de Presentación (UI Layer)
+│   ├── screens/         # Pantallas (AsientosScreen, DetalleVentaScreen, etc.)
+│   └── viewmodel/       # Lógica de presentación (AsientosViewModel, DetalleVentaViewModel)
+└── App.kt               # Punto de entrada y Grafo de Navegación
 
-To build and run the development version of the desktop app, use the run configuration from the run widget
-in your IDE’s toolbar or run it directly from the terminal:
-- on macOS/Linux
-  ```shell
-  ./gradlew :composeApp:run
-  ```
-- on Windows
-  ```shell
-  .\gradlew.bat :composeApp:run
-  ```
+```
 
-### Build and Run Server
+## 🔌 Conectividad e Integración
 
-To build and run the development version of the server, use the run configuration from the run widget
-in your IDE’s toolbar or run it directly from the terminal:
-- on macOS/Linux
-  ```shell
-  ./gradlew :server:run
-  ```
-- on Windows
-  ```shell
-  .\gradlew.bat :server:run
-  ```
+La aplicación interactúa con dos servicios distintos, configurados en `data/network`:
 
-### Build and Run Web Application
+| Servicio | Puerto Local | Función Principal |
+| --- | --- | --- |
+| **Backend** | `:8080` | Autenticación (Login/Registro) y Transacción de Venta. |
+| **Proxy** | `:8081` | Consulta de mapa de asientos (Redis) y Bloqueos temporales. |
 
-To build and run the development version of the web app, use the run configuration from the run widget
-in your IDE's toolbar or run it directly from the terminal:
-- for the Wasm target (faster, modern browsers):
-  - on macOS/Linux
-    ```shell
-    ./gradlew :composeApp:wasmJsBrowserDevelopmentRun
-    ```
-  - on Windows
-    ```shell
-    .\gradlew.bat :composeApp:wasmJsBrowserDevelopmentRun
-    ```
-- for the JS target (slower, supports older browsers):
-  - on macOS/Linux
-    ```shell
-    ./gradlew :composeApp:jsBrowserDevelopmentRun
-    ```
-  - on Windows
-    ```shell
-    .\gradlew.bat :composeApp:jsBrowserDevelopmentRun
-    ```
+## 🛠 Tecnologías y Librerías
 
-### Build and Run iOS Application
+* **UI Toolkit:** Jetpack Compose Multiplatform.
+* **Lenguaje:** Kotlin.
+* **Networking:** Ktor Client (ContentNegotiation, Serialization).
+* **Concurrencia:** Kotlin Coroutines.
+* **Arquitectura:** MVVM (Model-View-ViewModel).
 
-To build and run the development version of the iOS app, use the run configuration from the run widget
-in your IDE’s toolbar or open the [/iosApp](./iosApp) directory in Xcode and run it from there.
+## 🚀 Ejecución
 
----
+Para correr la aplicación en un emulador o dispositivo físico:
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html),
-[Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform/#compose-multiplatform),
-[Kotlin/Wasm](https://kotl.in/wasm/)…
+1. Asegúrate de tener corriendo el **Backend** y el **Proxy** (ver README principal).
+2. Abre el proyecto en **Android Studio**.
+3. Selecciona la configuración de ejecución `composeApp`.
+4. Presiona **Run** (▶).
 
-We would appreciate your feedback on Compose/Web and Kotlin/Wasm in the public Slack channel [#compose-web](https://slack-chats.kotlinlang.org/c/compose-web).
-If you face any issues, please report them on [YouTrack](https://youtrack.jetbrains.com/newIssue?project=CMP).
+> **Nota:** Si usas un dispositivo físico, asegúrate de que el celular y tu PC estén en la misma red Wi-Fi y actualiza las IPs en `EventoService.kt`.

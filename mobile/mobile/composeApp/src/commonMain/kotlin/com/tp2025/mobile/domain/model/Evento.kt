@@ -1,4 +1,4 @@
-package com.tp2025.mobile.data
+package com.tp2025.mobile.domain.model
 
 import kotlinx.serialization.Serializable
 

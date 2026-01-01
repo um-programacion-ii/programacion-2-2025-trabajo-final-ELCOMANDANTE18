@@ -1,4 +1,4 @@
-package com.tp2025.mobile.ui
+package com.tp2025.mobile.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
