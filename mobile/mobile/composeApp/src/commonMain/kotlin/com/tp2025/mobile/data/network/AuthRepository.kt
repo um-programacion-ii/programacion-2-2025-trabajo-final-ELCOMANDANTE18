@@ -1,8 +1,8 @@
 package com.tp2025.mobile.data.network
 
 
-import com.tp2025.mobile.data.model.LoginResponse
-import com.tp2025.mobile.data.model.LoginRequest
+import com.tp2025.mobile.domain.model.LoginResponse
+import com.tp2025.mobile.domain.model.LoginRequest
 
 import io.ktor.client.call.body
 import io.ktor.client.request.post

@@ -1,4 +1,4 @@
-package com.tp2025.mobile.auth
+package com.tp2025.mobile.data.local
 
 object SessionManager {
     var jwtToken: String? = null

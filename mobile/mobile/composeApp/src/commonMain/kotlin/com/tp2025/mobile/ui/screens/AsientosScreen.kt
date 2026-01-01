@@ -1,4 +1,4 @@
-package com.tp2025.mobile.ui
+package com.tp2025.mobile.ui.screens
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -22,39 +22,31 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tp2025.mobile.auth.SessionManager
-import com.tp2025.mobile.data.AsientoVenta
-import com.tp2025.mobile.data.Evento
-import com.tp2025.mobile.data.EventoService
-import com.tp2025.mobile.data.network.ProxyRepository
-import kotlinx.coroutines.launch
+import com.tp2025.mobile.domain.model.AsientoVenta
+import com.tp2025.mobile.domain.model.Evento
+
+// 👇 Importamos el ViewModel (Asegúrate de haber creado el archivo del paso anterior)
+import com.tp2025.mobile.ui.viewmodel.AsientosViewModel
 
 @Composable
 fun AsientosScreen(
     evento: Evento,
     token: String,
     onBack: () -> Unit,
-    onContinuar: (List<AsientoVenta>) -> Unit // <--- ESTO ARREGLA EL ERROR ROJO EN APP.KT
+    onContinuar: (List<AsientoVenta>) -> Unit
 ) {
+    // 1. Instanciamos el ViewModel
+    // En KMP puro usamos remember { ... } para mantener vivo el VM mientras la pantalla viva.
+    val viewModel = remember { AsientosViewModel() }
+
+    // 2. Delegamos la carga de datos al ViewModel
+    LaunchedEffect(Unit) {
+        viewModel.cargarOcupados(evento.id)
+    }
+
     val filas = evento.filaAsientos ?: 10
     val columnas = evento.columnAsientos ?: 10
-
-    val servicio = remember { EventoService() }
-    val proxyRepo = remember { ProxyRepository() }
-    val scope = rememberCoroutineScope()
     val scaffoldState = rememberScaffoldState()
-
-    val misAsientos = remember { mutableStateListOf<AsientoVenta>() }
-    var ocupadosRemotos by remember { mutableStateOf<List<String>>(emptyList()) }
-
-    // Carga inicial de ocupados (Solo visual)
-    LaunchedEffect(Unit) {
-        try {
-            ocupadosRemotos = proxyRepo.obtenerAsientosOcupados(evento.id)
-        } catch (e: Exception) {
-            println("Error cargando ocupados: ${e.message}")
-        }
-    }
 
     Scaffold(
         scaffoldState = scaffoldState,
@@ -73,7 +65,8 @@ fun AsientosScreen(
             )
         },
         bottomBar = {
-            if (misAsientos.isNotEmpty()) {
+            // 3. La UI observa el estado del ViewModel (misAsientos)
+            if (viewModel.misAsientos.isNotEmpty()) {
                 Surface(elevation = 16.dp, color = Color.White) {
                     Column(
                         modifier = Modifier
@@ -89,12 +82,13 @@ fun AsientosScreen(
                             Column {
                                 Text("Total estimado:", style = MaterialTheme.typography.caption)
                                 val precio = evento.precioEntrada ?: 0.0
-                                val total = precio * misAsientos.size
+                                // Calculamos total usando la lista del VM
+                                val total = precio * viewModel.misAsientos.size
                                 Text("$${total}", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color(0xFF4CAF50))
                             }
 
                             Button(
-                                onClick = { onContinuar(misAsientos) },
+                                onClick = { onContinuar(viewModel.misAsientos) },
                                 colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.primary),
                                 shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier.height(48.dp)
@@ -134,21 +128,18 @@ fun AsientosScreen(
                         items(columnas) { colIndex ->
                             val fila = filaIndex + 1
                             val col = colIndex + 1
-                            val esMio = misAsientos.any { it.fila == fila && it.columna == col }
-                            // trim() es importante para evitar errores de strings sucios
-                            val esOcupado = ocupadosRemotos.any { it.trim() == "$fila-$col" }
+
+                            // 4. Preguntamos al VM el estado de cada asiento
+                            val esMio = viewModel.misAsientos.any { it.fila == fila && it.columna == col }
+                            val esOcupado = viewModel.esOcupadoRemoto(fila, col)
 
                             AsientoItem(
                                 col = col,
                                 esMio = esMio,
                                 esOcupadoRemoto = esOcupado,
                                 onToggle = {
-                                    // LOGICA LOCAL: No llamamos al servidor aquí, solo cambiamos el estado visual
-                                    if (esMio) {
-                                        misAsientos.removeAll { it.fila == fila && it.columna == col }
-                                    } else {
-                                        misAsientos.add(AsientoVenta(fila, col))
-                                    }
+                                    // 5. Enviamos la acción al VM
+                                    viewModel.toggleAsiento(fila, col)
                                 }
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -159,6 +150,8 @@ fun AsientosScreen(
         }
     }
 }
+
+// --- Componentes Visuales Puros (No cambian) ---
 
 @Composable
 fun ReferenciaEstados() {
@@ -190,7 +183,6 @@ fun AsientoItem(
         esOcupadoRemoto -> Color(0xFFE53935)
         else -> Color.White
     }
-
     val habilitado = !esOcupadoRemoto
 
     Box(
@@ -199,7 +191,7 @@ fun AsientoItem(
             .clip(RoundedCornerShape(8.dp))
             .background(color)
             .border(1.dp, if(habilitado && !esMio) Color.Gray else Color.Transparent, RoundedCornerShape(8.dp))
-            .clickable(enabled = habilitado) { onToggle() }, // <-- Click instantáneo
+            .clickable(enabled = habilitado) { onToggle() },
         contentAlignment = Alignment.Center
     ) {
         if(esMio) Text("✓", color=Color.White, fontWeight=FontWeight.Bold)

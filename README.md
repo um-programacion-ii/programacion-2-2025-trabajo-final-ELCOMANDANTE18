@@ -1,34 +1,14 @@
 <div align="center">
   <img src="docs/logo.entradera.png" alt="Logo Entradera" width="300">
   <br>
-  <br>
+  <h1>Entradera</h1>
+  <p>Sistema integral para el registro y gestión de asistencia a eventos únicos.</p>
 </div>
 
-
-## Entradera
-Sistema integral para el registro y gestión de asistencia a eventos únicos, como parte del Trabajo de Regularización 2025.
-
+## 📋 Descripción
 **Trabajo Final - Programación 2 - 2025**
 
-## Descripción
-
-Sistema que permite a los usuarios:
-- Consultar el listado de eventos disponibles
-- Ver el detalle y el mapa de asientos de un evento
-- Seleccionar y bloquear temporalmente (por sesión) de 1 a 4 asientos.
-- Cargar los datos (nombre y apellido) de los asistentes para los asientos seleccionados.
-- Confirmar la compra (venta) de las entradas.
-
-## Arquitectura
-
-El proyecto está dividido en cuatro componentes principales según el enunciado:
-
-1. **Backend** - (Java/JHipster): API REST principal que gestiona la lógica de negocio, se comunica con el cliente móvil y el proxy.
-2. **Proxy** - (Java/Spring Boot): Servicio intermediario que es el **único** con acceso al Kafka y Redis de la Cátedra.
-3. **Cliente Móvil** - (Kotlin Multiplatform): Aplicación móvil para los usuarios finales.
-4. **Servicio Cátedra** - (Provisto por la cátedra): Expone endpoints, un topic de Kafka para cambios y un Redis para el estado de los asientos.
-
-
+Sistema distribuido que permite a los usuarios consultar eventos, visualizar mapas de asientos en tiempo real y realizar la compra de entradas de manera segura. El sistema implementa una arquitectura de microservicios para garantizar la consistencia de datos, interactuando con una infraestructura externa provista por la Cátedra (API, Kafka y Redis).
 
 ## Estructura del Proyecto
 
@@ -43,33 +23,135 @@ El proyecto está dividido en cuatro componentes principales según el enunciado
 └── README.md
 ```
 
+## 🏗 Arquitectura del Sistema
 
+El proyecto está dividido en cuatro componentes principales:
 
-## Tecnologías
+1) Backend: (Java/JHipster): API REST principal que centraliza la lógica de negocio. Es responsable de la persistencia local de ventas en MySQL e interactúa directamente con el cliente móvil.
 
--   **Backend**: Java (Spring Boot / JHipster) , MySQL, Redis (para sesiones locales).
--   **Proxy**: Java (Spring Boot), Kafka Consumer, Redis Client.
--   **Mobile**: Kotlin Multiplatform (KMP).
--   **Infraestructura**: Docker.
+2) Proxy: (Java/Spring Boot): Servicio intermediario que actúa como barrera de seguridad. Funciona como el único punto de acceso autorizado a los servicios de Kafka y Redis de la Cátedra.
 
-## Requisitos
+3) Cliente Móvil: (Kotlin Multiplatform): Interfaz gráfica nativa desarrollada para Android. Implementa una arquitectura MVVM para gestionar la interacción del usuario con el sistema.
 
--   Java JDK 17+
--   Docker Desktop
--   Git
+4) Servicio Cátedra: Infraestructura externa provista por la cátedra. Expone los servicios de gestión de eventos, notificaciones y el estado de los asientos.
 
-## Estado del Proyecto
+### Diagrama de Componentes
 
-Proyecto en fase inicial. Estructura de repositorio definida y planificación de hitos en progreso.
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                   SERVICIOS DE CÁTEDRA                          │
+│  ┌─────────────────┐             ┌─────────────────┐            │
+│  │   API Cátedra   │             │                 │            │
+│  │     :8080       │             │                 │            │
+│  └────────┬────────┘             │                 │            │
+│           │                      │                 │            │
+│  ┌────────┴────────┐             │                 │            │
+│  │     Kafka       │             │     Redis       │            │
+│  │     :9092       │             │     :6379       │            │
+│  └────────┬────────┘             └────────┬────────┘            │
+└───────────│───────────────────────────────│─────────────────────┘
+            │                               │
+            │  ┌──────────────────────────┐ │
+            └─►│          PROXY           │◄┘
+               │         :8081            │
+               └────────────┬─────────────┘
+                            │
+                            │ HTTP
+                            ▼
+               ┌──────────────────────────┐
+               │         BACKEND          │
+               │         :8080            │
+               └────────────┬─────────────┘
+                            │
+              ┌─────────────┼─────────────┐
+              │             │             │
+              ▼             │             ▼
+        ┌──────────┐        │       ┌──────────┐
+        │ MariaDB  │        │       │  Mobile  │
+        │  :3306   │        │       │   App    │
+        └──────────┘        │       └──────────┘
+                            │
+                            ▼
+                   ┌──────────────┐
+                   │   Usuario    │
+                   │    Final     │
+                   └──────────────┘
 
-## Autor
+```
+
+## ⚙️ Configuración de Entorno (.env)
+
+Antes de iniciar, es **obligatorio** crear un archivo `.env` en la raíz de las carpetas `backend/` y `proxy/`.
+
+**Datos de Conexión Cátedra (IPs Reales):**
+| Servicio | IP | Puerto |
+| :--- | :--- | :--- |
+| **API Cátedra** | `192.168.194.250` | 8080 |
+| **Kafka** | `192.168.194.250` | 9092 |
+| **Redis** | `192.168.194.250` | 6379 |
+
+*Ejemplo de contenido para `proxy/.env`:*
+
+```properties
+KAFKA_BOOTSTRAP_SERVERS=192.168.194.250:9092
+REDIS_HOST=192.168.194.250
+REDIS_PORT=6379
+SERVER_PORT=8081
+```
+
+## 🚀 Guía de Ejecución
+
+Sigue este orden estricto para levantar el sistema completo:
+
+### 1. Infraestructura Local (Docker)
+
+Levanta la base de datos MySQL y el Redis local (para sesiones de usuario).
+
+```bash
+cd backend/src/main/docker
+docker compose up -d
+```
+
+### 2. Iniciar el Backend
+
+En una nueva terminal, inicia el servicio principal cargando las variables de entorno:
+
+```bash
+cd backend
+export $(grep -v '^#' .env | xargs) && ./mvnw
+```
+
+*El servicio estará disponible en `http://localhost:8080`.*
+
+### 3. Iniciar el Proxy
+
+En otra terminal, inicia el intermediario con la cátedra:
+
+```bash
+cd proxy
+export $(grep -v '^#' .env | xargs) && mvn clean spring-boot:run
+```
+
+*El servicio estará disponible en `http://localhost:8081`.*
+
+### 4. Cliente Móvil
+
+1. Abrir el proyecto en **Android Studio**.
+2. Sincronizar Gradle.
+3. Ejecutar la configuración `composeApp` en un emulador o dispositivo físico.
+
+## 🛠 Tecnologías Utilizadas
+
+* **Backend**: Java 21, Spring Boot, JHipster, MySQL, Hibernate.
+* **Proxy**: Java 21, Spring Boot, Spring Kafka, Spring Data Redis.
+* **Mobile**: Kotlin Multiplatform (KMP), Jetpack Compose, MVVM Pattern.
+* **Infraestructura**: Docker, Docker Compose.
+
+## 👤 Autor
 
 **Nombre:** Victor Benjamin GIMENEZ
-
 **Legajo:** 61174
 
-## Licencia
+## 📄 Licencia
 
-Proyecto académico.
-
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/IEOUmR9z)
+Proyecto académico para la Universidad de Mendoza.

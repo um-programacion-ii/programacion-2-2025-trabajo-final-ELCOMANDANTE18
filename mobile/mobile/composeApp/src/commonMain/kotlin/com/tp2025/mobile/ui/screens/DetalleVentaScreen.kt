@@ -1,14 +1,14 @@
-package com.tp2025.mobile.ui
+package com.tp2025.mobile.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.*
@@ -18,10 +18,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
-import com.tp2025.mobile.data.AsientoVenta
-import com.tp2025.mobile.data.Evento
-import com.tp2025.mobile.data.EventoService
+import com.tp2025.mobile.domain.model.AsientoVenta
+import com.tp2025.mobile.domain.model.Evento
+// 👇 Importamos el ViewModel
+import com.tp2025.mobile.ui.viewmodel.DetalleVentaViewModel
 
 @Composable
 fun DetalleVentaScreen(
@@ -31,38 +31,32 @@ fun DetalleVentaScreen(
     onBack: () -> Unit,
     onCompraExitosa: () -> Unit
 ) {
-    val servicio = remember { EventoService() }
-    val scope = rememberCoroutineScope()
-    val scaffoldState = rememberScaffoldState()
+    // 1. Instanciamos el ViewModel pasando los datos iniciales
+    val viewModel = remember { DetalleVentaViewModel(asientosSeleccionados) }
 
-    // Copia local mutable para editar nombres
-    val listaTickets = remember { asientosSeleccionados.map { it.copy() }.toMutableStateList() }
+    // Scrolleo para responsive
+    val scrollState = rememberScrollState()
 
-    var isBuying by remember { mutableStateOf(false) }
-    var showSuccessDialog by remember { mutableStateOf(false) }
-
-    val totalPagar = (evento.precioEntrada ?: 0.0) * listaTickets.size
+    val totalPagar = (evento.precioEntrada ?: 0.0) * viewModel.listaTickets.size
 
     Scaffold(
-        scaffoldState = scaffoldState,
         topBar = {
             TopAppBar(
                 title = { Text("Resumen de Compra") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Volver") }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver") }
                 },
                 backgroundColor = Color(0xFF6200EE),
                 contentColor = Color.White,
-                modifier = Modifier.statusBarsPadding(), // Respeta la barra de estado
+                modifier = Modifier.statusBarsPadding(),
                 elevation = 4.dp
             )
         },
         bottomBar = {
-            // BARRA INFERIOR DE PAGO (Se adapta al teclado)
             Surface(
                 elevation = 16.dp,
                 color = Color.White,
-                modifier = Modifier.navigationBarsPadding().imePadding() // <--- MAGIA RESPONSIVE
+                modifier = Modifier.navigationBarsPadding().imePadding()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -82,44 +76,28 @@ fun DetalleVentaScreen(
 
                     Button(
                         onClick = {
-                            scope.launch {
-                                isBuying = true
-                                println("🚀 Enviando compra al Backend... (${listaTickets.size} entradas)")
-
-                                try {
-                                    // LLAMADA REAL AL BACKEND
-                                    servicio.realizarVenta(token, evento.id, listaTickets)
-                                    println("✅ Respuesta recibida del Backend")
-                                } catch (e: Exception) {
-                                    println("⚠️ Error técnico en backend (ignorado para demo): ${e.message}")
-                                }
-
-                                // Delay estético para ver el spinner
-                                kotlinx.coroutines.delay(1000)
-
-                                // ÉXITO SIEMPRE
-                                isBuying = false
-                                showSuccessDialog = true
-                            }
+                            // 2. Delegamos la acción al ViewModel
+                            viewModel.confirmarCompra(token, evento.id)
                         },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFF6200EE)),
-                        enabled = !isBuying
+                        // 3. Observamos estado 'isBuying' del VM
+                        enabled = !viewModel.isBuying
                     ) {
-                        if (isBuying) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        if (viewModel.isBuying) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                         else Text("CONFIRMAR PAGO", fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }
         }
     ) { padding ->
-        // CONTENIDO CON SCROLL
         Column(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
                 .background(Color(0xFFF5F5F5))
+                .verticalScroll(scrollState) // Scroll para teclado
                 .padding(horizontal = 16.dp)
         ) {
             Spacer(modifier = Modifier.height(16.dp))
@@ -138,60 +116,58 @@ fun DetalleVentaScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                // Padding extra abajo para que el último item no quede tapado por la barra
-                contentPadding = PaddingValues(bottom = 20.dp)
-            ) {
-                itemsIndexed(listaTickets) { index, ticket ->
-                    Card(
-                        elevation = 2.dp,
-                        shape = RoundedCornerShape(8.dp),
-                        backgroundColor = Color.White
+            // Usamos itemsIndexed manual porque estamos dentro de un Column con scroll
+            viewModel.listaTickets.forEachIndexed { index, ticket ->
+                Card(
+                    elevation = 2.dp,
+                    shape = RoundedCornerShape(8.dp),
+                    backgroundColor = Color.White,
+                    modifier = Modifier.padding(vertical = 6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            color = Color(0xFFE8EAF6),
+                            shape = CircleShape,
+                            modifier = Modifier.size(40.dp)
                         ) {
-                            // Icono Asiento
-                            Surface(
-                                color = Color(0xFFE8EAF6),
-                                shape = CircleShape,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        "${ticket.fila}-${ticket.columna}",
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF6200EE),
-                                        fontSize = 14.sp
-                                    )
-                                }
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    "${ticket.fila}-${ticket.columna}",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF6200EE),
+                                    fontSize = 14.sp
+                                )
                             }
-
-                            Spacer(modifier = Modifier.width(16.dp))
-
-                            // Campo Nombre
-                            OutlinedTextField(
-                                value = ticket.persona ?: "",
-                                onValueChange = { nuevoNombre ->
-                                    listaTickets[index] = ticket.copy(persona = nuevoNombre)
-                                },
-                                label = { Text("Nombre") },
-                                placeholder = { Text("Ej: Usuario ${index + 1}") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                trailingIcon = { Icon(Icons.Default.Person, null, tint = Color.Gray) }
-                            )
                         }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        OutlinedTextField(
+                            value = ticket.persona ?: "",
+                            onValueChange = { nuevoNombre ->
+                                // 4. Actualizamos el VM
+                                viewModel.actualizarNombre(index, nuevoNombre)
+                            },
+                            label = { Text("Nombre") },
+                            placeholder = { Text("Ej: Usuario ${index + 1}") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            trailingIcon = { Icon(Icons.Default.Person, null, tint = Color.Gray) }
+                        )
                     }
                 }
             }
+
+            // Espacio extra al final
+            Spacer(modifier = Modifier.height(100.dp))
         }
     }
 
-    // DIÁLOGO FINAL
-    if (showSuccessDialog) {
+    // 5. Diálogo observado desde el ViewModel
+    if (viewModel.showSuccessDialog) {
         AlertDialog(
             onDismissRequest = {},
             title = {

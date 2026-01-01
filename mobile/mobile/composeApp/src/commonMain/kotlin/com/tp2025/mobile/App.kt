@@ -3,16 +3,18 @@ package com.tp2025.mobile
 import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
-import com.tp2025.mobile.auth.SessionManager
-import com.tp2025.mobile.ui.HomeScreen
-import com.tp2025.mobile.ui.AsientosScreen
-import com.tp2025.mobile.ui.LoginScreen
-import com.tp2025.mobile.ui.RegistroScreen
-import com.tp2025.mobile.ui.EventoDetalleScreen
-import com.tp2025.mobile.ui.DetalleVentaScreen // <--- NUEVA PANTALLA
-import com.tp2025.mobile.data.Evento
-import com.tp2025.mobile.data.EventoService
-import com.tp2025.mobile.data.AsientoVenta // <--- Necesario para pasar la lista
+// 👇 Asegúrate de que SessionManager esté en esta carpeta o ajusta el import
+import com.tp2025.mobile.data.local.SessionManager
+import com.tp2025.mobile.ui.screens.HomeScreen
+import com.tp2025.mobile.ui.screens.AsientosScreen
+import com.tp2025.mobile.ui.screens.LoginScreen
+import com.tp2025.mobile.ui.screens.RegistroScreen
+import com.tp2025.mobile.ui.screens.EventoDetalleScreen
+import com.tp2025.mobile.ui.screens.DetalleVentaScreen
+// 👇 CAMBIO IMPORTANTE: Evento ahora vive en domain.model
+import com.tp2025.mobile.domain.model.Evento
+import com.tp2025.mobile.data.network.EventoService
+import com.tp2025.mobile.domain.model.AsientoVenta
 
 // 1. DEFINIMOS LAS PANTALLAS (Rutas)
 sealed class Screen {
@@ -21,7 +23,6 @@ sealed class Screen {
     object Home : Screen()
     data class Detalle(val evento: Evento) : Screen()
     data class Asientos(val evento: Evento) : Screen()
-    // 👇 NUEVA RUTA: Recibe el evento y los asientos que elegiste
     data class DetalleVenta(val evento: Evento, val asientos: List<AsientoVenta>) : Screen()
 }
 
