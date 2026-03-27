@@ -1,0 +1,36 @@
+name: Plantilla de issue
+description: Usar para describir tareas o funcionalidades a implementar
+title: "Implementación de la clase Libro"
+labels: [""]
+assignees:
+  - ELCOMANDANTE18
+
+body:
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Descripción
+      description: Describe brevemente la funcionalidad a implementar.
+      placeholder: Crear la clase `Libro` con sus atributos básicos y la lógica mínima de negocio para modelar un libro en el sistema.
+    validations:
+      required: true
+
+  - type: textarea
+    id: tareas
+    attributes:
+      label: Tareas
+      description: Lista las tareas a completar para terminar la implementación.
+      placeholder: |
+        - [ ] Crear clase `Libro`
+        - [ ] Añadir atributos privates:
+          - `String isbn`
+          - `String titulo`
+          - `String autor`
+          - `Estado estado` (enum con valores `DISPONIBLE`, `PRESTADO`)
+        - [ ] Generar constructor público que reciba `isbn`, `titulo` y `autor` e inicialice `estado` a `DISPONIBLE`
+        - [ ] Implementar getters para todos los atributos
+        - [ ] Manejar excepciones adecuadamente
+        - [ ] Compilar código sin errores
+        - [ ] Agregar o actualizar documentación
+    validations:
+      required: true

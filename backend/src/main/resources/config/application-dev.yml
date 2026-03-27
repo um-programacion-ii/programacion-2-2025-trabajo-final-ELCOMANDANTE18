@@ -1,0 +1,100 @@
+# ===================================================================
+# Spring Boot configuration for the "dev" profile.
+# ESTE ARCHIVO SOBREESCRIBE A application.yml
+# ===================================================================
+
+logging:
+  level:
+    ROOT: DEBUG
+    tech.jhipster: DEBUG
+    org.hibernate.SQL: DEBUG
+    com.mycompany.myapp: DEBUG
+
+spring:
+  devtools:
+    restart:
+      enabled: true
+      additional-exclude: static/**
+    livereload:
+      enabled: false
+  jackson:
+    serialization:
+      indent-output: true
+
+  # --- BASE DE DATOS (MODIFICADO PARA LEER TU .ENV) ---
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    # Agregamos allowPublicKeyRetrieval y autoReconnect para evitar caídas
+    url: jdbc:mysql://localhost:3306/${DB_NAME:eventos_BD}?useUnicode=true&characterEncoding=utf8&useSSL=false&createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&autoReconnect=true
+    username: ${DB_USERNAME:root}
+    # Forzamos root por si el .env falla, aunque ya debería ir bien
+    password: ${DB_PASSWORD:root}
+    hikari:
+      poolName: Hikari
+      auto-commit: false
+      # Aumentamos el tiempo de espera para que Docker despierte
+      connection-timeout: 60000
+      maximum-pool-size: 10
+
+    liquibase:
+      contexts: dev, faker
+    mail:
+      host: localhost
+      port: 25
+      username:
+      password:
+    messages:
+      cache-duration: PT1S
+    thymeleaf:
+      cache: false
+
+server:
+  port: 8080
+  forward-headers-strategy: native
+
+# ===================================================================
+# JHipster specific properties
+# ===================================================================
+
+jhipster:
+  cache:
+    redis:
+      expiration: 3600
+      # Usamos las variables del .env para Redis también
+      server: redis://${SPRING_REDIS_HOST:localhost}:${SPRING_REDIS_PORT:6379}
+      cluster: false
+
+  cors:
+    # Permitimos acceso desde cualquier origen en desarrollo (útil para el móvil)
+    allowed-origins: '*'
+    allowed-methods: '*'
+    allowed-headers: '*'
+    exposed-headers: 'Authorization,Link,X-Total-Count,X-${jhipster.clientApp.name}-alert,X-${jhipster.clientApp.name}-error,X-${jhipster.clientApp.name}-params'
+    allow-credentials: true
+    max-age: 1800
+
+  security:
+    authentication:
+      jwt:
+        # --- SEGURIDAD LEÍDA DEL .ENV ---
+        # JHipster trae un secret por defecto aquí que sobreescribe al application.yml
+        # Debemos poner la variable aquí también.
+        base64-secret: ${JWT_SECRET}
+        token-validity-in-seconds: ${JWT_EXPIRATION:86400}
+        token-validity-in-seconds-for-remember-me: 2592000
+
+  mail:
+    base-url: http://127.0.0.1:8080
+  logging:
+    use-json-format: false
+    logstash:
+      enabled: false
+      host: localhost
+      port: 5000
+      ring-buffer-size: 512
+
+# ===================================================================
+# Application specific properties
+# ===================================================================
+
+# application:
